@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Option C: Horizontal Split Sidebar - Mockup</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "72", "72full", Arial, Helvetica, sans-serif;
+      background: #f7f7f7;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* SAP Fiori Theme Variables */
+    :root {
+      --sapShell_Background: #354a5f;
+      --sapShell_TextColor: #fff;
+      --sapList_Background: #fff;
+      --sapList_BorderColor: #e5e5e5;
+      --sapList_Hover_Background: #f5f5f5;
+      --sapList_Active_Background: #e5f0fa;
+      --sapButton_Emphasized_Background: #0a6ed1;
+      --sapButton_Emphasized_TextColor: #fff;
+      --sapNegativeColor: #bb0000;
+      --sapContent_LabelColor: #6a6d70;
+      --sapGroup_ContentBorderColor: #d9d9d9;
+    }
+
+    /* Shell Bar */
+    .shell-bar {
+      height: 44px;
+      background: var(--sapShell_Background);
+      color: var(--sapShell_TextColor);
+      display: flex;
+      align-items: center;
+      padding: 0 1rem;
+      font-size: 16px;
+      font-weight: 600;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      z-index: 10;
+    }
+
+    /* Main Layout */
+    .main-container {
+      display: flex;
+      height: calc(100vh - 44px);
+    }
+
+    /* Sidebar Container */
+    .sidebar {
+      display: flex;
+      width: 320px;
+      border-right: 1px solid var(--sapGroup_ContentBorderColor);
+      background: var(--sapList_Background);
+    }
+
+    /* Agent Strip (Left) */
+    .agent-strip {
+      width: 60px;
+      background: #fafafa;
+      border-right: 1px solid var(--sapList_BorderColor);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0.5rem 0;
+      gap: 0.75rem;
+      overflow-y: auto;
+    }
+
+    .agent-item {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .agent-item:hover {
+      transform: scale(1.05);
+    }
+
+    .agent-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 14px;
+      color: #fff;
+      position: relative;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .agent-avatar.selected {
+      box-shadow: 0 0 0 2px var(--sapButton_Emphasized_Background);
+    }
+
+    .agent-avatar.agent-1 { background: #0a6ed1; }
+    .agent-avatar.agent-2 { background: #5b738b; }
+    .agent-avatar.agent-3 { background: #107e3e; }
+
+    .agent-delete {
+      position: absolute;
+      bottom: -8px;
+      right: -8px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--sapNegativeColor);
+      color: white;
+      border: 2px solid white;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .agent-item:hover .agent-delete {
+      display: flex;
+    }
+
+    .agent-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      background: var(--sapButton_Emphasized_Background);
+      color: white;
+      border-radius: 10px;
+      padding: 2px 6px;
+      font-size: 10px;
+      font-weight: 600;
+      border: 2px solid white;
+    }
+
+    .add-agent-btn {
+      margin-top: auto;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--sapButton_Emphasized_Background);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 24px;
+      font-weight: 300;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      transition: all 0.2s;
+    }
+
+    .add-agent-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+    }
+
+    /* Conversations Panel (Right) */
+    .conversations-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .conversations-header {
+      height: 44px;
+      border-bottom: 1px solid var(--sapList_BorderColor);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1rem;
+      background: #fafafa;
+    }
+
+    .conversations-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--sapContent_LabelColor);
+    }
+
+    .add-conversation-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+      background: var(--sapButton_Emphasized_Background);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 20px;
+      font-weight: 300;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .add-conversation-btn:hover {
+      opacity: 0.9;
+      transform: scale(1.05);
+    }
+
+    .conversations-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem 0;
+    }
+
+    .conversation-item {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      transition: background 0.2s;
+      position: relative;
+    }
+
+    .conversation-item:hover {
+      background: var(--sapList_Hover_Background);
+    }
+
+    .conversation-item.selected {
+      background: var(--sapList_Active_Background);
+      border-left: 3px solid var(--sapButton_Emphasized_Background);
+    }
+
+    .conversation-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      border: 2px solid var(--sapContent_LabelColor);
+      flex-shrink: 0;
+    }
+
+    .conversation-item.selected .conversation-indicator {
+      background: var(--sapButton_Emphasized_Background);
+      border-color: var(--sapButton_Emphasized_Background);
+    }
+
+    .conversation-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .conversation-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: #32363a;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .conversation-time {
+      font-size: 12px;
+      color: var(--sapContent_LabelColor);
+    }
+
+    .conversation-delete {
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: all 0.2s;
+      cursor: pointer;
+      color: var(--sapNegativeColor);
+    }
+
+    .conversation-item:hover .conversation-delete {
+      opacity: 1;
+    }
+
+    .conversation-delete:hover {
+      background: #ffe5e5;
+    }
+
+    /* Main Chat Area */
+    .chat-area {
+      flex: 1;
+      background: #f7f7f7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--sapContent_LabelColor);
+      font-size: 14px;
+    }
+
+    /* Tooltip */
+    .agent-item[data-tooltip]::before {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: calc(100% + 10px);
+      background: #32363a;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 100;
+    }
+
+    .agent-item:hover::before {
+      opacity: 1;
+    }
+
+    /* Scrollbar styling */
+    .conversations-list::-webkit-scrollbar,
+    .agent-strip::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .conversations-list::-webkit-scrollbar-track,
+    .agent-strip::-webkit-scrollbar-track {
+      background: #f0f0f0;
+    }
+
+    .conversations-list::-webkit-scrollbar-thumb,
+    .agent-strip::-webkit-scrollbar-thumb {
+      background: #c0c0c0;
+      border-radius: 3px;
+    }
+
+    .conversations-list::-webkit-scrollbar-thumb:hover,
+    .agent-strip::-webkit-scrollbar-thumb:hover {
+      background: #a0a0a0;
+    }
+
+    /* Empty state */
+    .empty-state {
+      padding: 2rem 1rem;
+      text-align: center;
+      color: var(--sapContent_LabelColor);
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 1rem;
+      opacity: 0.3;
+    }
+
+    .empty-state-text {
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Shell Bar -->
+  <div class="shell-bar">
+    A2A Agent Chat
+  </div>
+
+  <!-- Main Container -->
+  <div class="main-container">
+    <!-- Sidebar: Horizontal Split -->
+    <div class="sidebar">
+      <!-- Agent Strip (Left) -->
+      <div class="agent-strip">
+        <div class="agent-item" data-tooltip="Agent Alpha">
+          <div class="agent-avatar agent-1 selected">
+            AA
+            <span class="agent-badge">4</span>
+          </div>
+          <div class="agent-delete">×</div>
+        </div>
+
+        <div class="agent-item" data-tooltip="Beta Assistant">
+          <div class="agent-avatar agent-2">
+            BA
+            <span class="agent-badge">2</span>
+          </div>
+          <div class="agent-delete">×</div>
+        </div>
+
+        <div class="agent-item" data-tooltip="Code Helper">
+          <div class="agent-avatar agent-3">
+            CH
+            <span class="agent-badge">7</span>
+          </div>
+          <div class="agent-delete">×</div>
+        </div>
+
+        <div class="add-agent-btn" title="Add Agent">+</div>
+      </div>
+
+      <!-- Conversations Panel (Right) -->
+      <div class="conversations-panel">
+        <div class="conversations-header">
+          <div class="conversations-title">Conversations - Agent Alpha</div>
+          <button class="add-conversation-btn" title="New Conversation">+</button>
+        </div>
+
+        <div class="conversations-list">
+          <div class="conversation-item selected">
+            <div class="conversation-indicator"></div>
+            <div class="conversation-content">
+              <div class="conversation-title">New Feature Implementation</div>
+              <div class="conversation-time">Updated 2 minutes ago</div>
+            </div>
+            <div class="conversation-delete">🗑️</div>
+          </div>
+
+          <div class="conversation-item">
+            <div class="conversation-indicator"></div>
+            <div class="conversation-content">
+              <div class="conversation-title">Debug Session - March 8</div>
+              <div class="conversation-time">Updated 1 hour ago</div>
+            </div>
+            <div class="conversation-delete">🗑️</div>
+          </div>
+
+          <div class="conversation-item">
+            <div class="conversation-indicator"></div>
+            <div class="conversation-content">
+              <div class="conversation-title">API Integration Discussion</div>
+              <div class="conversation-time">Updated yesterday</div>
+            </div>
+            <div class="conversation-delete">🗑️</div>
+          </div>
+
+          <div class="conversation-item">
+            <div class="conversation-indicator"></div>
+            <div class="conversation-content">
+              <div class="conversation-title">Code Review Notes</div>
+              <div class="conversation-time">Updated 2 days ago</div>
+            </div>
+            <div class="conversation-delete">🗑️</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Area -->
+    <div class="chat-area">
+      Select a conversation to start chatting
+    </div>
+  </div>
+
+  <script>
+    // Add simple interactivity for demo
+    document.querySelectorAll('.agent-item').forEach(item => {
+      item.addEventListener('click', function(e) {
+        if (e.target.classList.contains('agent-delete')) return;
+
+        // Remove selected from all agents
+        document.querySelectorAll('.agent-avatar').forEach(a => a.classList.remove('selected'));
+
+        // Add selected to clicked agent
+        this.querySelector('.agent-avatar').classList.add('selected');
+
+        // Update header
+        const agentName = this.getAttribute('data-tooltip');
+        document.querySelector('.conversations-title').textContent = `Conversations - ${agentName}`;
+      });
+    });
+
+    document.querySelectorAll('.conversation-item').forEach(item => {
+      item.addEventListener('click', function() {
+        document.querySelectorAll('.conversation-item').forEach(c => c.classList.remove('selected'));
+        this.classList.add('selected');
+      });
+    });
+
+    document.querySelectorAll('.agent-delete').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (confirm('Delete this agent and all its conversations?')) {
+          this.closest('.agent-item').remove();
+        }
+      });
+    });
+
+    document.querySelectorAll('.conversation-delete').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (confirm('Delete this conversation?')) {
+          this.closest('.conversation-item').remove();
+        }
+      });
+    });
+
+    document.querySelector('.add-agent-btn').addEventListener('click', function() {
+      alert('Add Agent dialog would open here');
+    });
+
+    document.querySelector('.add-conversation-btn').addEventListener('click', function() {
+      alert('New conversation would be created for selected agent');
+    });
+  </script>
+</body>
+</html>

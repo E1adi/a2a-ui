@@ -1,0 +1,337 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { v4 as uuidv4 } from 'uuid';
+import type { ChatMessage, Conversation } from '../types/index.ts';
+import type { Artifact, Task, TaskState } from '../services/a2a/types.ts';
+
+interface ChatState {
+  conversations: Record<string, Conversation>;
+  selectedConversationId: string | null;
+  conversationsByAgent: Record<string, string[]>;
+  activeStreams: Record<string, AbortController>;
+
+  createConversation: (agentId: string, title?: string) => Conversation;
+  deleteConversation: (conversationId: string) => void;
+  deleteAllConversationsForAgent: (agentId: string) => void;
+  selectConversation: (conversationId: string) => void;
+  getConversation: (conversationId: string) => Conversation | undefined;
+  getSelectedConversation: () => Conversation | undefined;
+  getConversationsForAgent: (agentId: string) => Conversation[];
+  addMessage: (conversationId: string, message: ChatMessage) => void;
+  updateMessage: (conversationId: string, messageId: string, updates: Partial<ChatMessage>) => void;
+  appendStreamingContent: (conversationId: string, messageId: string, content: string) => void;
+  addTask: (conversationId: string, task: Task) => void;
+  updateTaskState: (conversationId: string, taskId: string, state: TaskState) => void;
+  setContextId: (conversationId: string, contextId: string) => void;
+  addArtifact: (conversationId: string, artifact: Artifact) => void;
+  setCurrentStatus: (conversationId: string, status: string) => void;
+  clearCurrentStatus: (conversationId: string) => void;
+  setActiveStream: (conversationId: string, controller: AbortController) => void;
+  clearActiveStream: (conversationId: string) => void;
+  cancelStream: (conversationId: string) => void;
+}
+
+const createEmptyConversation = (agentId: string, title?: string): Conversation => ({
+  id: uuidv4(),
+  agentId,
+  title: title ?? `Conversation ${new Date().toLocaleString()}`,
+  messages: [],
+  tasks: [],
+  artifacts: [],
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+});
+
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set, get) => ({
+      conversations: {},
+      selectedConversationId: null,
+      conversationsByAgent: {},
+      activeStreams: {},
+
+      createConversation: (agentId, title) => {
+        const newConv = createEmptyConversation(agentId, title);
+        set((state) => ({
+      conversations: {
+        ...state.conversations,
+        [newConv.id]: newConv,
+      },
+      conversationsByAgent: {
+        ...state.conversationsByAgent,
+        [agentId]: [...(state.conversationsByAgent[agentId] ?? []), newConv.id],
+      },
+      selectedConversationId: newConv.id,
+    }));
+    return newConv;
+  },
+
+  deleteConversation: (conversationId) => {
+    db.deleteConversation(conversationId);
+    set((state) => {
+      const conv = state.conversations[conversationId];
+      if (!conv) return state;
+
+      const { [conversationId]: _, ...remainingConvs } = state.conversations;
+      const agentConvs = state.conversationsByAgent[conv.agentId] ?? [];
+      const updatedAgentConvs = agentConvs.filter((id) => id !== conversationId);
+
+      return {
+        conversations: remainingConvs,
+        conversationsByAgent: {
+          ...state.conversationsByAgent,
+          [conv.agentId]: updatedAgentConvs,
+        },
+        selectedConversationId:
+          state.selectedConversationId === conversationId ? null : state.selectedConversationId,
+      };
+    });
+  },
+
+  deleteAllConversationsForAgent: (agentId) => {
+    db.deleteConversationsByAgent(agentId);
+    set((state) => {
+      const convIds = state.conversationsByAgent[agentId] ?? [];
+      const remainingConvs = { ...state.conversations };
+
+      // Remove all conversations for this agent
+      for (const convId of convIds) {
+        delete remainingConvs[convId];
+      }
+
+      // Remove agent from conversationsByAgent
+      const { [agentId]: _, ...remainingAgentConvs} = state.conversationsByAgent;
+
+      // Clear selection if any of the deleted conversations was selected
+      const shouldClearSelection = convIds.includes(state.selectedConversationId ?? '');
+
+      return {
+        conversations: remainingConvs,
+        conversationsByAgent: remainingAgentConvs,
+        selectedConversationId: shouldClearSelection ? null : state.selectedConversationId,
+      };
+    });
+  },
+
+  selectConversation: (conversationId) =>
+    set({ selectedConversationId: conversationId }),
+
+  getConversation: (conversationId) => {
+    return get().conversations[conversationId];
+  },
+
+  getSelectedConversation: () => {
+    const { selectedConversationId, conversations } = get();
+    return selectedConversationId ? conversations[selectedConversationId] : undefined;
+  },
+
+  getConversationsForAgent: (agentId) => {
+    const { conversationsByAgent, conversations } = get();
+    const convIds = conversationsByAgent[agentId] ?? [];
+    return convIds.map((id) => conversations[id]).filter(Boolean);
+  },
+
+  addMessage: (conversationId, message) => {
+    db.saveMessage(conversationId, message);
+    set((state) => {
+      const conv = state.conversations[conversationId];
+      if (!conv) return state;
+      const updated = {
+        ...conv,
+        messages: [...conv.messages, message],
+        updatedAt: Date.now(),
+      };
+      db.saveConversation(updated);
+      return {
+        conversations: {
+          ...state.conversations,
+          [conversationId]: updated,
+        },
+      };
+    });
+  },
+
+  updateMessage: (conversationId, messageId, updates) => {
+    set((state) => {
+      const conv = state.conversations[conversationId];
+      if (!conv) return state;
+      const updatedMessages = conv.messages.map((m) =>
+        m.messageId === messageId ? { ...m, ...updates } : m,
+      );
+      const updatedMessage = updatedMessages.find((m) => m.messageId === messageId);
+      if (updatedMessage) {
+        db.saveMessage(conversationId, updatedMessage);
+      }
+      const updated = {
+        ...conv,
+        messages: updatedMessages,
+        updatedAt: Date.now(),
+      };
+      db.saveConversation(updated);
+      return {
+        conversations: {
+          ...state.conversations,
+          [conversationId]: updated,
+        },
+      };
+    });
+  },
+
+  appendStreamingContent: (conversationId, messageId, content) => {
+    set((state) => {
+      const conv = state.conversations[conversationId];
+      if (!conv) return state;
+      const updatedMessages = conv.messages.map((m) =>
+        m.messageId === messageId
+          ? { ...m, streamingContent: (m.streamingContent ?? '') + content }
+          : m,
+      );
+      const updatedMessage = updatedMessages.find((m) => m.messageId === messageId);
+      if (updatedMessage) {
+        db.saveMessage(conversationId, updatedMessage);
+      }
+      const updated = {
+        ...conv,
+        messages: updatedMessages,
+        updatedAt: Date.now(),
+      };
+      db.saveConversation(updated);
+      return {
+        conversations: {
+          ...state.conversations,
+          [conversationId]: updated,
+        },
+      };
+    });
+  },
+
+  addTask: (conversationId, task) => {
+    db.saveTask(conversationId, task);
+    set((state) => {
+      const conv = state.conversations[conversationId];
+      if (!conv) return state;
+      const existing = conv.tasks.findIndex((t) => t.id === task.id);
+      const tasks = existing >= 0
+        ? conv.tasks.map((t) => (t.id === task.id ? task : t))
+        : [...conv.tasks, task];
+      const updated = {
+        ...conv,
+        tasks,
+        lastTaskState: task.status.state,
+        contextId: task.contextId,
+        updatedAt: Date.now(),
+      };
+      db.saveConversation(updated);
+      return {
+        conversations: {
+          ...state.conversations,
+          [conversationId]: updated,
+        },
+      };
+    });
+  },
+
+  updateTaskState: (conversationId, taskId, state) =>
+    set((s) => {
+      const conv = s.conversations[conversationId];
+      if (!conv) return s;
+      return {
+        conversations: {
+          ...s.conversations,
+          [conversationId]: {
+            ...conv,
+            tasks: conv.tasks.map((t) =>
+              t.id === taskId ? { ...t, status: { ...t.status, state } } : t,
+            ),
+            lastTaskState: state,
+            updatedAt: Date.now(),
+          },
+        },
+      };
+    }),
+
+  setContextId: (conversationId, contextId) => {
+    set((state) => {
+      const conv = state.conversations[conversationId];
+      if (!conv) return state;
+      const updated = { ...conv, contextId, updatedAt: Date.now() };
+      db.saveConversation(updated);
+      return {
+        conversations: {
+          ...state.conversations,
+          [conversationId]: updated,
+        },
+      };
+    });
+  },
+
+  addArtifact: (conversationId, artifact) => {
+    db.saveArtifact(conversationId, artifact);
+    set((state) => {
+      const conv = state.conversations[conversationId];
+      if (!conv) return state;
+      const existing = conv.artifacts.findIndex((a) => a.artifactId === artifact.artifactId);
+      const artifacts = existing >= 0
+        ? conv.artifacts.map((a) => (a.artifactId === artifact.artifactId ? artifact : a))
+        : [...conv.artifacts, artifact];
+      const updated = { ...conv, artifacts, updatedAt: Date.now() };
+      db.saveConversation(updated);
+      return {
+        conversations: {
+          ...state.conversations,
+          [conversationId]: updated,
+        },
+      };
+    });
+  },
+
+  setCurrentStatus: (conversationId, status) => {
+    set((state) => {
+      const conv = state.conversations[conversationId];
+      if (!conv) return state;
+      const updated = { ...conv, currentStatus: status, updatedAt: Date.now() };
+      db.saveConversation(updated);
+      return {
+        conversations: {
+          ...state.conversations,
+          [conversationId]: updated,
+        },
+      };
+    });
+  },
+
+  clearCurrentStatus: (conversationId) => {
+    set((state) => {
+      const conv = state.conversations[conversationId];
+      if (!conv) return state;
+      const updated = { ...conv, currentStatus: undefined, updatedAt: Date.now() };
+      db.saveConversation(updated);
+      return {
+        conversations: {
+          ...state.conversations,
+          [conversationId]: updated,
+        },
+      };
+    });
+  },
+
+  setActiveStream: (conversationId, controller) =>
+    set((state) => ({
+      activeStreams: { ...state.activeStreams, [conversationId]: controller },
+    })),
+
+  clearActiveStream: (conversationId) =>
+    set((state) => {
+      const { [conversationId]: _, ...rest } = state.activeStreams;
+      return { activeStreams: rest };
+    }),
+
+  cancelStream: (conversationId) => {
+    const controller = get().activeStreams[conversationId];
+    if (controller) {
+      controller.abort();
+      get().clearActiveStream(conversationId);
+      get().clearCurrentStatus(conversationId);
+    }
+  },
+}));
