@@ -100,12 +100,13 @@ export function useA2AClient() {
               clearActiveStream(conversationId);
             },
             useProxy,
+            agent.id, // Pass agent ID for backend token injection
           );
 
           setActiveStream(conversationId, controller);
         } else {
           // Non-streaming: synchronous request/response
-          const client = new A2AClient(agentUrl, async () => token, useProxy);
+          const client = new A2AClient(agentUrl, async () => token, useProxy, agent.id);
           const task: Task = await client.sendMessage(a2aMessage);
 
           if (task.contextId) {

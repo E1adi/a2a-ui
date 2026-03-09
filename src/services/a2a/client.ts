@@ -15,11 +15,13 @@ export class A2AClient {
   private agentUrl: string;
   private getToken?: () => Promise<string | null>;
   private useProxy: boolean;
+  private agentId?: string;
 
-  constructor(agentUrl: string, getToken?: () => Promise<string | null>, useProxy = true) {
+  constructor(agentUrl: string, getToken?: () => Promise<string | null>, useProxy = true, agentId?: string) {
     this.agentUrl = agentUrl;
     this.getToken = getToken;
     this.useProxy = useProxy;
+    this.agentId = agentId;
   }
 
   static async discoverAgent(baseUrl: string, useProxy = true): Promise<AgentCard> {
@@ -32,6 +34,7 @@ export class A2AClient {
         headers: {
           'X-Target-URL': url,
         },
+        credentials: 'include', // Include session cookie
       });
 
       if (!res.ok) {
@@ -70,9 +73,13 @@ export class A2AClient {
 
     if (this.useProxy) {
       headers['X-Target-URL'] = this.agentUrl;
+      if (this.agentId) {
+        headers['X-Agent-ID'] = this.agentId;
+      }
     }
 
-    if (this.getToken) {
+    // Only include Authorization if not using proxy (proxy will inject it)
+    if (!this.useProxy && this.getToken) {
       const token = await this.getToken();
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
@@ -92,6 +99,7 @@ export class A2AClient {
       method: 'POST',
       headers,
       body: JSON.stringify(request),
+      credentials: this.useProxy ? 'include' : 'omit', // Include cookies for proxy
     });
 
     if (!res.ok) {

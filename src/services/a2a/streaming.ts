@@ -19,6 +19,7 @@ export function sendStreamingMessage(
   onError: (error: Error) => void,
   onComplete: () => void,
   useProxy = true,
+  agentId?: string,
 ): AbortController {
   const controller = new AbortController();
 
@@ -29,9 +30,13 @@ export function sendStreamingMessage(
 
   if (useProxy) {
     headers['X-Target-URL'] = agentUrl;
+    if (agentId) {
+      headers['X-Agent-ID'] = agentId;
+    }
   }
 
-  if (token) {
+  // Only include Authorization if not using proxy (proxy will inject it)
+  if (!useProxy && token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
@@ -52,6 +57,7 @@ export function sendStreamingMessage(
     headers,
     body: JSON.stringify(request),
     signal: controller.signal,
+    credentials: useProxy ? 'include' : 'omit', // Include cookies for proxy
   })
     .then(async (res) => {
       if (!res.ok) {
