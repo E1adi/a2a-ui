@@ -1,6 +1,7 @@
 /**
  * Backend Token Store
- * Communicates with the proxy server to securely store and retrieve tokens
+ * Communicates with the proxy server for PKCE auth flow and token management.
+ * Tokens are never sent to the browser.
  */
 
 const PROXY_BASE_URL = import.meta.env.VITE_PROXY_BASE_URL || 'http://localhost:3001';
@@ -12,38 +13,8 @@ export interface TokenInfo {
   isExpired?: boolean;
 }
 
-/**
- * Store tokens for an agent on the backend
- */
-export async function storeToken(
-  agentId: string,
-  accessToken: string,
-  refreshToken?: string,
-  expiresIn?: number,
-): Promise<void> {
-  const response = await fetch(`${PROXY_BASE_URL}/auth/store-token`, {
-    method: 'POST',
-    credentials: 'include', // Include session cookie
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      agentId,
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      expires_in: expiresIn,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to store token');
-  }
-
-  const result = await response.json();
-  if (!result.success) {
-    throw new Error('Failed to store token');
-  }
+export interface AllTokenInfo {
+  agents: Record<string, TokenInfo>;
 }
 
 /**
@@ -51,11 +22,44 @@ export async function storeToken(
  */
 export async function getTokenInfo(agentId: string): Promise<TokenInfo> {
   const response = await fetch(`${PROXY_BASE_URL}/auth/token-info/${agentId}`, {
-    credentials: 'include', // Include session cookie
+    credentials: 'include',
   });
 
   if (!response.ok) {
     throw new Error('Failed to get token info');
+  }
+
+  return response.json();
+}
+
+/**
+ * Get token info for all agents at once
+ */
+export async function getAllTokenInfo(): Promise<AllTokenInfo> {
+  const response = await fetch(`${PROXY_BASE_URL}/auth/all-token-info`, {
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to get all token info');
+  }
+
+  return response.json();
+}
+
+/**
+ * Request a token refresh on the proxy
+ */
+export async function refreshToken(agentId: string): Promise<{ success: boolean; error?: string }> {
+  const response = await fetch(`${PROXY_BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ agentId }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to refresh token');
   }
 
   return response.json();
@@ -67,24 +71,10 @@ export async function getTokenInfo(agentId: string): Promise<TokenInfo> {
 export async function clearToken(agentId: string): Promise<void> {
   const response = await fetch(`${PROXY_BASE_URL}/auth/clear-token/${agentId}`, {
     method: 'DELETE',
-    credentials: 'include', // Include session cookie
+    credentials: 'include',
   });
 
   if (!response.ok) {
     throw new Error('Failed to clear token');
-  }
-}
-
-/**
- * Clear all tokens for the current session
- */
-export async function clearAllTokens(): Promise<void> {
-  const response = await fetch(`${PROXY_BASE_URL}/auth/clear-all-tokens`, {
-    method: 'POST',
-    credentials: 'include', // Include session cookie
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to clear all tokens');
   }
 }

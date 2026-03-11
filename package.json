@@ -16,6 +16,7 @@
     "@ui5/webcomponents-fiori": "^2.20.0",
     "@ui5/webcomponents-icons": "^2.20.0",
     "@ui5/webcomponents-react": "^2.20.0",
+    "better-sqlite3": "^12.6.2",
     "concurrently": "^9.1.2",
     "cors": "^2.8.5",
     "express": "^4.21.2",

@@ -1,109 +1,75 @@
-import type { OidcConfig } from '../../types/index.ts';
-import { OidcTokenService } from './oidc.ts';
-import { storeToken, getTokenInfo, clearToken as clearBackendToken } from './backendTokenStore.ts';
+/**
+ * Token Manager
+ * Manages auth status checking for agents. Tokens are stored server-side only.
+ */
 
-interface CachedToken {
-  accessToken: string;
-  expiresAt: number;
-}
-
-const TOKEN_EXPIRY_BUFFER_MS = 60_000; // Refresh 60s before expiry
+import type { OidcConfig, AuthStatus } from '../../types/index.ts';
+import { getTokenInfo, getAllTokenInfo, refreshToken as backendRefresh, clearToken as backendClear } from './backendTokenStore.ts';
+import { authenticateWithPopup } from './pkceAuth.ts';
 
 export class TokenManager {
-  private cache = new Map<string, CachedToken>(); // In-memory cache for performance
-  private pendingRefreshes = new Map<string, Promise<string>>();
+  /**
+   * Check auth status for a single agent
+   */
+  async checkAuthStatus(agentId: string): Promise<AuthStatus> {
+    try {
+      const info = await getTokenInfo(agentId);
+      if (!info.hasToken) return 'disconnected';
+      if (info.isExpired) return 'disconnected';
+      return 'connected';
+    } catch {
+      return 'disconnected';
+    }
+  }
 
   /**
-   * Get token for an agent. Checks backend first, then refreshes if needed.
+   * Check auth statuses for all agents at once
    */
-  async getToken(agentId: string, oidcConfig: OidcConfig): Promise<string> {
-    // Check in-memory cache first (fastest)
-    const cached = this.cache.get(agentId);
-    if (cached && cached.expiresAt - TOKEN_EXPIRY_BUFFER_MS > Date.now()) {
-      return cached.accessToken;
-    }
-
-    // Check if token exists in backend
+  async checkAllAuthStatuses(): Promise<Record<string, AuthStatus>> {
     try {
-      const tokenInfo = await getTokenInfo(agentId);
-      if (tokenInfo.hasToken && !tokenInfo.isExpired) {
-        // Token exists and valid in backend, but we don't have it in memory
-        // Need to fetch a new one (backend doesn't send tokens back for security)
-        console.log('[TokenManager] Token exists in backend but not in memory, fetching new one');
+      const { agents } = await getAllTokenInfo();
+      const result: Record<string, AuthStatus> = {};
+      for (const [agentId, info] of Object.entries(agents)) {
+        if (!info.hasToken || info.isExpired) {
+          result[agentId] = 'disconnected';
+        } else {
+          result[agentId] = 'connected';
+        }
       }
-    } catch (error) {
-      console.warn('[TokenManager] Failed to check backend token:', error);
-    }
-
-    // Deduplicate concurrent refresh calls
-    const pending = this.pendingRefreshes.get(agentId);
-    if (pending) return pending;
-
-    const refreshPromise = this.refreshToken(agentId, oidcConfig);
-    this.pendingRefreshes.set(agentId, refreshPromise);
-
-    try {
-      return await refreshPromise;
-    } finally {
-      this.pendingRefreshes.delete(agentId);
+      return result;
+    } catch {
+      return {};
     }
   }
 
   /**
-   * Fetch a new token from OIDC provider and store it in backend
+   * Authenticate an agent via PKCE popup flow
    */
-  private async refreshToken(agentId: string, config: OidcConfig): Promise<string> {
-    let tokenEndpoint = config.tokenEndpoint;
-
-    if (!tokenEndpoint) {
-      tokenEndpoint = await OidcTokenService.discoverTokenEndpoint(config.issuerUrl);
-    }
-
-    if (!config.clientSecret) {
-      throw new Error('Client secret is required for client credentials grant');
-    }
-
-    const result = await OidcTokenService.fetchToken(
-      tokenEndpoint,
-      config.clientId,
-      config.clientSecret,
-      config.scopes,
-    );
-
-    // Store in memory cache
-    this.cache.set(agentId, result);
-
-    // Store in backend for secure persistence
-    try {
-      const expiresIn = Math.floor((result.expiresAt - Date.now()) / 1000);
-      await storeToken(agentId, result.accessToken, undefined, expiresIn);
-      console.log('[TokenManager] Stored token in backend for agent:', agentId);
-    } catch (error) {
-      console.error('[TokenManager] Failed to store token in backend:', error);
-      // Continue anyway - token is still in memory
-    }
-
-    return result.accessToken;
+  async authenticate(agentId: string, agentUrl: string, config: OidcConfig): Promise<void> {
+    await authenticateWithPopup(agentId, agentUrl, config.issuerUrl, config.clientId, config.scopes, config.clientSecret, config.audience);
   }
 
   /**
-   * Clear token from both memory and backend
+   * Refresh token for an agent via the proxy
+   */
+  async refreshToken(agentId: string): Promise<boolean> {
+    try {
+      const result = await backendRefresh(agentId);
+      return result.success;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Clear token for an agent
    */
   async clearToken(agentId: string): Promise<void> {
-    this.cache.delete(agentId);
     try {
-      await clearBackendToken(agentId);
-      console.log('[TokenManager] Cleared token from backend for agent:', agentId);
+      await backendClear(agentId);
     } catch (error) {
-      console.error('[TokenManager] Failed to clear token from backend:', error);
+      console.error('[TokenManager] Failed to clear token:', error);
     }
-  }
-
-  /**
-   * Clear all tokens from memory (backend tokens remain for session)
-   */
-  clearAll(): void {
-    this.cache.clear();
   }
 }
 

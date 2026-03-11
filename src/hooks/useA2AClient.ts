@@ -4,11 +4,14 @@ import { A2AClient } from '../services/a2a/client.ts';
 import { sendStreamingMessage } from '../services/a2a/streaming.ts';
 import { useChatStore } from '../store/chatStore.ts';
 import { useAuth } from './useAuth.ts';
+import { useAgentStore } from '../store/agentStore.ts';
+import { A2AHttpError } from '../utils/errors.ts';
 import type { AgentConfig, ChatMessage } from '../types/index.ts';
 import type { Message, Part, StreamResponse, Task } from '../services/a2a/types.ts';
 
 export function useA2AClient() {
-  const { getToken } = useAuth();
+  const { refreshToken } = useAuth();
+  const setAuthStatus = useAgentStore((s) => s.setAuthStatus);
   const {
     getSelectedConversation,
     createConversation,
@@ -57,15 +60,14 @@ export function useA2AClient() {
       };
 
       const supportsStreaming = agent.agentCard?.capabilities?.streaming ?? false;
-      const agentUrl = agent.agentCard?.url ?? agent.agentUrl;
+      // Use user-provided URL — agent card URL may be an internal container address (e.g. 0.0.0.0:5000)
+      const agentUrl = agent.agentUrl;
       const useProxy = agent.useProxy ?? true;
 
       // Set initial status (will be shown as indicator, not a bubble)
       setCurrentStatus(conversationId, 'Connecting...');
 
       try {
-        const token = await getToken(agent.id, agent.auth);
-
         if (supportsStreaming) {
           // Agent message will be created when artifact arrives
           const agentMsgId = uuidv4();
@@ -74,7 +76,6 @@ export function useA2AClient() {
             agentUrl,
             a2aMessage,
             undefined,
-            token,
             (event: StreamResponse) => {
               // On first stream event, change status to streaming
               const msg = useChatStore.getState().getConversation(conversationId)
@@ -94,20 +95,44 @@ export function useA2AClient() {
               });
               clearActiveStream(conversationId);
             },
-            () => {
+            (authStatus?: string) => {
               console.log('[useA2AClient] Stream complete');
               clearCurrentStatus(conversationId);
               clearActiveStream(conversationId);
+
+              // Check if auth refresh failed
+              if (authStatus === 'refresh-failed' && agent.auth) {
+                setAuthStatus(agent.id, 'disconnected');
+              }
             },
             useProxy,
-            agent.id, // Pass agent ID for backend token injection
           );
 
           setActiveStream(conversationId, controller);
         } else {
           // Non-streaming: synchronous request/response
-          const client = new A2AClient(agentUrl, async () => token, useProxy, agent.id);
-          const task: Task = await client.sendMessage(a2aMessage);
+          const client = new A2AClient(agentUrl, useProxy);
+          const agentMsgId = uuidv4();
+
+          let task: Task;
+          try {
+            task = await client.sendMessage(a2aMessage);
+          } catch (err) {
+            // On 401/403, try refreshing token and retrying once
+            if (err instanceof A2AHttpError && (err.status === 401 || err.status === 403) && agent.auth) {
+              console.log(`[useA2AClient] Got ${err.status}, attempting token refresh for agent ${agent.id}`);
+              const refreshed = await refreshToken(agent.id);
+              if (refreshed) {
+                // Retry with fresh token (proxy will inject it)
+                task = await client.sendMessage(a2aMessage);
+              } else {
+                setAuthStatus(agent.id, 'disconnected');
+                throw new Error('Authentication expired. Click the agent to reconnect.');
+              }
+            } else {
+              throw err;
+            }
+          }
 
           if (task.contextId) {
             setContextId(conversationId, task.contextId);
@@ -133,14 +158,18 @@ export function useA2AClient() {
             responseParts = task.history.filter((m) => m.role === 'agent').flatMap((m) => m.parts);
           }
 
-          // Update the processing message with actual response
-          updateMessage(conversationId, agentMsgId, {
+          // Create agent message with actual response
+          const agentMessage: ChatMessage = {
+            messageId: agentMsgId,
+            role: 'agent',
             parts: responseParts,
             contextId: task.contextId,
             taskId: task.id,
             status: responseParts.length > 0 ? 'sent' : 'error',
+            timestamp: Date.now(),
             error: responseParts.length === 0 ? 'Agent returned no response' : undefined,
-          });
+          };
+          addMessage(conversationId, agentMessage);
 
           console.log('[useA2AClient] Non-streaming response:', {
             taskStatus: task.status,
@@ -163,7 +192,7 @@ export function useA2AClient() {
         addMessage(conversationId, errorMessage);
       }
     },
-    [getToken, getSelectedConversation, createConversation, addMessage, updateMessage, appendStreamingContent, addTask, setContextId, addArtifact, setActiveStream, clearActiveStream],
+    [refreshToken, setAuthStatus, getSelectedConversation, createConversation, addMessage, updateMessage, appendStreamingContent, addTask, setContextId, addArtifact, setActiveStream, clearActiveStream, setCurrentStatus, clearCurrentStatus],
   );
 
   const handleStreamEvent = useCallback(
@@ -349,7 +378,7 @@ export function useA2AClient() {
         }
       }
     },
-    [setContextId, appendStreamingContent, updateMessage, clearActiveStream, addTask, addArtifact],
+    [setContextId, appendStreamingContent, updateMessage, clearActiveStream, addTask, addArtifact, clearCurrentStatus, setCurrentStatus, addMessage],
   );
 
   const isStreaming = useCallback(

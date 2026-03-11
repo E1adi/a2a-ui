@@ -5,8 +5,10 @@ export interface OidcConfig {
   clientId: string;
   clientSecret?: string;
   scopes: string;
-  tokenEndpoint?: string;
+  audience?: string;
 }
+
+export type AuthStatus = 'connected' | 'disconnected' | 'none';
 
 export interface AgentConfig {
   id: string;

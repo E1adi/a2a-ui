@@ -13,42 +13,47 @@ const PROXY_URL = import.meta.env.VITE_PROXY_URL || 'http://localhost:3001/proxy
 
 export class A2AClient {
   private agentUrl: string;
-  private getToken?: () => Promise<string | null>;
   private useProxy: boolean;
-  private agentId?: string;
 
-  constructor(agentUrl: string, getToken?: () => Promise<string | null>, useProxy = true, agentId?: string) {
+  constructor(agentUrl: string, useProxy = true) {
     this.agentUrl = agentUrl;
-    this.getToken = getToken;
     this.useProxy = useProxy;
-    this.agentId = agentId;
   }
 
   static async discoverAgent(baseUrl: string, useProxy = true): Promise<AgentCard> {
-    const url = baseUrl.replace(/\/+$/, '') + '/.well-known/agent-card.json';
+    const base = baseUrl.replace(/\/+$/, '');
+    // Try both well-known paths: agent.json (A2A v0.3+) and agent-card.json (legacy)
+    const paths = ['/.well-known/agent.json', '/.well-known/agent-card.json'];
 
-    if (useProxy) {
-      // Use proxy for discovery
-      const res = await fetch(PROXY_URL, {
-        method: 'GET',
-        headers: {
-          'X-Target-URL': url,
-        },
-        credentials: 'include', // Include session cookie
-      });
-
-      if (!res.ok) {
-        throw new A2AHttpError(res.status, res.statusText, `Failed to discover agent at ${url}`);
+    let lastError: Error | null = null;
+    for (const path of paths) {
+      const url = base + path;
+      try {
+        if (useProxy) {
+          const res = await fetch(PROXY_URL, {
+            method: 'GET',
+            headers: { 'X-Target-URL': url },
+            credentials: 'include',
+          });
+          if (!res.ok) {
+            lastError = new A2AHttpError(res.status, res.statusText, `Failed to discover agent at ${url}`);
+            continue;
+          }
+          return res.json() as Promise<AgentCard>;
+        } else {
+          const res = await fetch(url);
+          if (!res.ok) {
+            lastError = new A2AHttpError(res.status, res.statusText, `Failed to discover agent at ${url}`);
+            continue;
+          }
+          return res.json() as Promise<AgentCard>;
+        }
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
       }
-      return res.json() as Promise<AgentCard>;
-    } else {
-      // Direct connection
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new A2AHttpError(res.status, res.statusText, `Failed to discover agent at ${url}`);
-      }
-      return res.json() as Promise<AgentCard>;
     }
+
+    throw lastError ?? new Error(`Failed to discover agent at ${base}`);
   }
 
   async sendMessage(message: Message, config?: SendMessageConfiguration): Promise<Task> {
@@ -73,17 +78,6 @@ export class A2AClient {
 
     if (this.useProxy) {
       headers['X-Target-URL'] = this.agentUrl;
-      if (this.agentId) {
-        headers['X-Agent-ID'] = this.agentId;
-      }
-    }
-
-    // Only include Authorization if not using proxy (proxy will inject it)
-    if (!this.useProxy && this.getToken) {
-      const token = await this.getToken();
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
     }
 
     const request: JsonRpcRequest = {
@@ -99,7 +93,7 @@ export class A2AClient {
       method: 'POST',
       headers,
       body: JSON.stringify(request),
-      credentials: this.useProxy ? 'include' : 'omit', // Include cookies for proxy
+      credentials: this.useProxy ? 'include' : 'omit',
     });
 
     if (!res.ok) {

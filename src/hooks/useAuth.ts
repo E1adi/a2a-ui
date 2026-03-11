@@ -1,21 +1,44 @@
 import { useCallback } from 'react';
 import { tokenManager } from '../services/auth/tokenManager.ts';
-import type { OidcConfig } from '../types/index.ts';
+import { useAgentStore } from '../store/agentStore.ts';
+import type { OidcConfig, AuthStatus } from '../types/index.ts';
 
 export function useAuth() {
-  const getToken = useCallback(
-    async (agentId: string, oidcConfig?: OidcConfig): Promise<string | null> => {
-      if (!oidcConfig?.clientId || !oidcConfig.clientSecret) {
-        return null;
-      }
-      return tokenManager.getToken(agentId, oidcConfig);
+  const setAuthStatus = useAgentStore((s) => s.setAuthStatus);
+
+  const authenticate = useCallback(
+    async (agentId: string, agentUrl: string, oidcConfig: OidcConfig): Promise<void> => {
+      await tokenManager.authenticate(agentId, agentUrl, oidcConfig);
+      setAuthStatus(agentId, 'connected');
     },
-    [],
+    [setAuthStatus],
   );
 
-  const clearToken = useCallback((agentId: string) => {
-    tokenManager.clearToken(agentId);
-  }, []);
+  const refreshToken = useCallback(
+    async (agentId: string): Promise<boolean> => {
+      const success = await tokenManager.refreshToken(agentId);
+      setAuthStatus(agentId, success ? 'connected' : 'disconnected');
+      return success;
+    },
+    [setAuthStatus],
+  );
 
-  return { getToken, clearToken };
+  const clearToken = useCallback(
+    async (agentId: string): Promise<void> => {
+      await tokenManager.clearToken(agentId);
+      setAuthStatus(agentId, 'none');
+    },
+    [setAuthStatus],
+  );
+
+  const checkStatus = useCallback(
+    async (agentId: string): Promise<AuthStatus> => {
+      const status = await tokenManager.checkAuthStatus(agentId);
+      setAuthStatus(agentId, status);
+      return status;
+    },
+    [setAuthStatus],
+  );
+
+  return { authenticate, refreshToken, clearToken, checkStatus };
 }

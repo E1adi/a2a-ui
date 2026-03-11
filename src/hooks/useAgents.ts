@@ -27,7 +27,7 @@ export function useAgents() {
   }, []);
 
   const saveAgent = useCallback(
-    (agentUrl: string, agentCard?: AgentCard, auth?: OidcConfig, useProxy = true) => {
+    (agentUrl: string, agentCard?: AgentCard, auth?: OidcConfig, useProxy = true, preGeneratedId?: string) => {
       // Check if agent already exists by URL
       const normalizedUrl = agentUrl.toLowerCase().trim();
       const existingAgent = agents.find(
@@ -40,7 +40,7 @@ export function useAgents() {
       }
 
       const config: AgentConfig = {
-        id: uuidv4(),
+        id: preGeneratedId || uuidv4(),
         agentUrl,
         agentCard,
         auth,

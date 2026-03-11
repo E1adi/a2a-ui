@@ -9,13 +9,20 @@ import {
   Dialog,
   Text,
   Avatar,
+  Icon,
 } from '@ui5/webcomponents-react';
+import '@ui5/webcomponents-icons/dist/chain-link.js';
 import { useAgents } from '../../hooks/useAgents.ts';
+import { useAuth } from '../../hooks/useAuth.ts';
+import { useAgentStore } from '../../store/agentStore.ts';
 import { useChatStore } from '../../store/chatStore.ts';
 import { AddAgentDialog } from '../agents/AddAgentDialog.tsx';
+import type { AuthStatus } from '../../types/index.ts';
 
 export function Sidebar() {
   const { agents, selectedAgentId, selectAgent, removeAgent } = useAgents();
+  const { authenticate } = useAuth();
+  const authStatuses = useAgentStore((s) => s.authStatuses);
   const {
     getConversationsForAgent,
     selectedConversationId,
@@ -58,6 +65,29 @@ export function Sidebar() {
     return agentName.slice(0, 2).toUpperCase();
   };
 
+  const getAuthStatus = (agentId: string, hasAuth: boolean): AuthStatus => {
+    if (!hasAuth) return 'none';
+    return authStatuses[agentId] || 'none';
+  };
+
+  const handleAgentClick = async (agentId: string) => {
+    const agent = agents.find((a) => a.id === agentId);
+    if (!agent) return;
+
+    const status = getAuthStatus(agentId, !!agent.auth?.clientId);
+
+    if (status === 'disconnected' && agent.auth) {
+      // Auto-trigger re-auth popup
+      try {
+        await authenticate(agentId, agent.agentUrl, agent.auth);
+      } catch (err) {
+        console.error('[Sidebar] Re-auth failed:', err);
+      }
+    } else {
+      selectAgent(agentId);
+    }
+  };
+
   const selectedAgent = selectedAgentId ? agents.find(a => a.id === selectedAgentId) : null;
   const conversations = selectedAgent ? getConversationsForAgent(selectedAgent.id) : [];
 
@@ -88,6 +118,8 @@ export function Sidebar() {
             const agentName = agent.agentCard?.name ?? agent.agentUrl;
             const isSelected = agent.id === selectedAgentId;
             const convCount = getConversationsForAgent(agent.id).length;
+            const status = getAuthStatus(agent.id, !!agent.auth?.clientId);
+            const isDisconnected = status === 'disconnected';
 
             return (
               <FlexBox
@@ -100,8 +132,12 @@ export function Sidebar() {
                   gap: '0.5rem',
                   transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 }}
-                onClick={() => selectAgent(agent.id)}
-                title={agentName}
+                onClick={() => handleAgentClick(agent.id)}
+                title={
+                  isDisconnected
+                    ? `${agentName} — Authentication expired, click to reconnect`
+                    : agentName
+                }
                 onMouseEnter={(e) => {
                   if (!isSelected) {
                     e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)';
@@ -111,19 +147,49 @@ export function Sidebar() {
                   e.currentTarget.style.transform = 'translateY(0) scale(1)';
                 }}
               >
-                <Avatar
-                  size="M"
-                  initials={getAgentInitials(agentName)}
-                  colorScheme={`Accent${(agents.indexOf(agent) % 10) + 1}` as any}
-                  style={{
-                    cursor: 'pointer',
-                    boxShadow: isSelected
-                      ? '0 4px 12px rgba(10, 110, 209, 0.3), 0 0 0 3px rgba(10, 110, 209, 0.1)'
-                      : '0 2px 8px rgba(0, 0, 0, 0.08)',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    transform: isSelected ? 'scale(1.05)' : 'scale(1)',
-                  }}
-                />
+                <div style={{ position: 'relative', display: 'inline-flex' }}>
+                  <Avatar
+                    size="M"
+                    initials={getAgentInitials(agentName)}
+                    colorScheme={`Accent${(agents.indexOf(agent) % 10) + 1}` as any}
+                    style={{
+                      cursor: 'pointer',
+                      boxShadow: isSelected
+                        ? '0 4px 12px rgba(10, 110, 209, 0.3), 0 0 0 3px rgba(10, 110, 209, 0.1)'
+                        : '0 2px 8px rgba(0, 0, 0, 0.08)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+                      opacity: isDisconnected ? 0.5 : 1,
+                      filter: isDisconnected ? 'grayscale(60%)' : 'none',
+                    }}
+                  />
+                  {isDisconnected && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '-2px',
+                        right: '-2px',
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        background: 'var(--sapNegativeColor, #bb0000)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                      }}
+                    >
+                      <Icon
+                        name="chain-link"
+                        style={{
+                          width: '12px',
+                          height: '12px',
+                          color: 'white',
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
                 {convCount > 0 && (
                   <div
                     style={{

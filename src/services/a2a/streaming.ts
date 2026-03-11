@@ -10,16 +10,19 @@ import { A2AHttpError, A2AStreamError } from '../../utils/errors.ts';
 
 const PROXY_URL = import.meta.env.VITE_PROXY_URL || 'http://localhost:3001/proxy';
 
+export interface StreamResult {
+  controller: AbortController;
+  authStatusHeader?: string;
+}
+
 export function sendStreamingMessage(
   agentUrl: string,
   message: Message,
   config: SendMessageConfiguration | undefined,
-  token: string | null,
   onEvent: (event: StreamResponse) => void,
   onError: (error: Error) => void,
-  onComplete: () => void,
+  onComplete: (authStatus?: string) => void,
   useProxy = true,
-  agentId?: string,
 ): AbortController {
   const controller = new AbortController();
 
@@ -30,14 +33,6 @@ export function sendStreamingMessage(
 
   if (useProxy) {
     headers['X-Target-URL'] = agentUrl;
-    if (agentId) {
-      headers['X-Agent-ID'] = agentId;
-    }
-  }
-
-  // Only include Authorization if not using proxy (proxy will inject it)
-  if (!useProxy && token) {
-    headers['Authorization'] = `Bearer ${token}`;
   }
 
   const request: JsonRpcRequest = {
@@ -57,9 +52,11 @@ export function sendStreamingMessage(
     headers,
     body: JSON.stringify(request),
     signal: controller.signal,
-    credentials: useProxy ? 'include' : 'omit', // Include cookies for proxy
+    credentials: useProxy ? 'include' : 'omit',
   })
     .then(async (res) => {
+      const authStatus = res.headers.get('X-Auth-Status') || undefined;
+
       if (!res.ok) {
         throw new A2AHttpError(res.status, res.statusText);
       }
@@ -100,7 +97,7 @@ export function sendStreamingMessage(
         }
       }
 
-      onComplete();
+      onComplete(authStatus);
     })
     .catch((err: unknown) => {
       if (err instanceof DOMException && err.name === 'AbortError') {

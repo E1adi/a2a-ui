@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import {
   Dialog,
   Button,
@@ -13,6 +14,10 @@ import {
   Text,
 } from '@ui5/webcomponents-react';
 import { useAgents } from '../../hooks/useAgents.ts';
+import { useAuth } from '../../hooks/useAuth.ts';
+import { useAgentStore } from '../../store/agentStore.ts';
+import { A2AClient } from '../../services/a2a/client.ts';
+import { A2AHttpError } from '../../utils/errors.ts';
 import type { AgentCard } from '../../services/a2a/types.ts';
 import type { OidcConfig } from '../../types/index.ts';
 
@@ -22,7 +27,9 @@ interface AddAgentDialogProps {
 }
 
 export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
-  const { saveAgent, discoverAgent, discovering, discoveryError } = useAgents();
+  const { saveAgent } = useAgents();
+  const { authenticate } = useAuth();
+  const setAuthStatus = useAgentStore((s) => s.setAuthStatus);
 
   const [agentUrl, setAgentUrl] = useState('');
   const [agentCard, setAgentCard] = useState<AgentCard | null>(null);
@@ -33,7 +40,21 @@ export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
   const [scopes, setScopes] = useState('');
-  const [tokenEndpoint, setTokenEndpoint] = useState('');
+  const [audience, setAudience] = useState('');
+
+  // Auth state
+  const [authenticating, setAuthenticating] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Local discovery state (replaces hook-based discovery)
+  const [discovering, setDiscovering] = useState(false);
+  const [discoveryError, setDiscoveryError] = useState<string | null>(null);
+
+  // Controlled OIDC panel collapsed state
+  const [oidcPanelCollapsed, setOidcPanelCollapsed] = useState(true);
+
+  const DEFAULT_SCOPES = 'openid profile';
+  const hasOidc = clientId.trim().length > 0;
 
   const resetForm = useCallback(() => {
     setAgentUrl('');
@@ -43,42 +64,124 @@ export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
     setClientId('');
     setClientSecret('');
     setScopes('');
-    setTokenEndpoint('');
+    setAudience('');
+    setAuthenticating(false);
+    setAuthError(null);
+    setDiscovering(false);
+    setDiscoveryError(null);
+    setOidcPanelCollapsed(true);
   }, []);
 
   const handleDiscover = async () => {
-    const card = await discoverAgent(agentUrl.trim(), useProxy);
-    if (card) setAgentCard(card);
+    setDiscovering(true);
+    setDiscoveryError(null);
+    try {
+      const card = await A2AClient.discoverAgent(agentUrl.trim(), hasOidc ? true : useProxy);
+      setAgentCard(card);
+    } catch (err) {
+      if (err instanceof A2AHttpError && (err.status === 401 || err.status === 403)) {
+        setOidcPanelCollapsed(false);
+        setDiscoveryError('Agent requires authentication. Fill in the OIDC fields below, then click Save.');
+      } else {
+        setDiscoveryError(err instanceof Error ? err.message : 'Discovery failed');
+      }
+    } finally {
+      setDiscovering(false);
+    }
   };
 
   const handleSave = async () => {
-    // Re-discover before saving to ensure we have the latest agent card
-    const card = await discoverAgent(agentUrl.trim(), useProxy);
-    if (!card) {
-      // Discovery failed, don't save
+    setAuthError(null);
+    setDiscoveryError(null);
+    const effectiveUseProxy = hasOidc ? true : useProxy;
+    const effectiveUrl = agentUrl.trim();
+
+    // Try discovery (unauthenticated)
+    let card: AgentCard | null = null;
+    let discoveryNeedsAuth = false;
+
+    try {
+      card = await A2AClient.discoverAgent(effectiveUrl, effectiveUseProxy);
+    } catch (err) {
+      if (err instanceof A2AHttpError && (err.status === 401 || err.status === 403)) {
+        if (!hasOidc) {
+          setOidcPanelCollapsed(false);
+          setDiscoveryError('Agent requires authentication. Fill in the OIDC fields below, then click Save.');
+          return;
+        }
+        discoveryNeedsAuth = true;
+      } else {
+        setDiscoveryError(err instanceof Error ? err.message : 'Discovery failed');
+        return;
+      }
+    }
+
+    if (discoveryNeedsAuth) {
+      // Auth-before-discovery fallback: authenticate first, then retry discovery
+      const agentId = uuidv4();
+      const oidcConfig: OidcConfig = {
+        issuerUrl: issuerUrl.trim(),
+        clientId: clientId.trim(),
+        clientSecret: clientSecret.trim() || undefined,
+        scopes: scopes.trim() || DEFAULT_SCOPES,
+        audience: audience.trim() || undefined,
+      };
+
+      setAuthenticating(true);
+      try {
+        await authenticate(agentId, effectiveUrl, oidcConfig);
+        // Retry discovery — proxy now has token and will match by URL
+        card = await A2AClient.discoverAgent(effectiveUrl, true);
+        const result = saveAgent(effectiveUrl, card!, oidcConfig, true, agentId);
+        if (result) {
+          setAuthStatus(agentId, 'connected');
+          resetForm();
+          onClose();
+        }
+      } catch (err) {
+        setAuthError(err instanceof Error ? err.message : 'Authentication or discovery failed');
+      } finally {
+        setAuthenticating(false);
+      }
       return;
     }
 
-    const auth: OidcConfig | undefined =
-      clientId.trim()
-        ? {
-            issuerUrl: issuerUrl.trim(),
-            clientId: clientId.trim(),
-            clientSecret: clientSecret.trim() || undefined,
-            scopes: scopes.trim(),
-            tokenEndpoint: tokenEndpoint.trim() || undefined,
-          }
-        : undefined;
+    // Discovery succeeded
+    if (hasOidc) {
+      // OIDC flow: generate ID upfront, authenticate via popup, then save
+      const agentId = uuidv4();
+      const oidcConfig: OidcConfig = {
+        issuerUrl: issuerUrl.trim(),
+        clientId: clientId.trim(),
+        clientSecret: clientSecret.trim() || undefined,
+        scopes: scopes.trim() || DEFAULT_SCOPES,
+        audience: audience.trim() || undefined,
+      };
 
-    const effectiveUrl = card.url.trim();
-    const result = saveAgent(effectiveUrl, card, auth, useProxy);
+      setAuthenticating(true);
+      try {
+        await authenticate(agentId, effectiveUrl, oidcConfig);
 
-    // Only close dialog if save succeeded (result is not null)
-    if (result) {
-      resetForm();
-      onClose();
+        // Auth succeeded — save agent
+        const result = saveAgent(effectiveUrl, card!, oidcConfig, true, agentId);
+        if (result) {
+          setAuthStatus(agentId, 'connected');
+          resetForm();
+          onClose();
+        }
+      } catch (err) {
+        setAuthError(err instanceof Error ? err.message : 'Authentication failed');
+      } finally {
+        setAuthenticating(false);
+      }
+    } else {
+      // No OIDC: save directly
+      const result = saveAgent(effectiveUrl, card!, undefined, effectiveUseProxy);
+      if (result) {
+        resetForm();
+        onClose();
+      }
     }
-    // If result is null, the error will be shown via discoveryError
   };
 
   const handleClose = () => {
@@ -95,11 +198,15 @@ export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
         <Bar
           endContent={
             <FlexBox style={{ gap: '0.5rem' }}>
-              <Button design="Transparent" onClick={handleClose}>
+              <Button design="Transparent" onClick={handleClose} disabled={authenticating}>
                 Cancel
               </Button>
-              <Button design="Emphasized" onClick={handleSave} disabled={!agentCard || discovering}>
-                Save
+              <Button
+                design="Emphasized"
+                onClick={handleSave}
+                disabled={!agentUrl.trim() || discovering || authenticating}
+              >
+                {authenticating ? 'Authenticating...' : 'Save'}
               </Button>
             </FlexBox>
           }
@@ -117,9 +224,10 @@ export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
               value={agentUrl}
               onInput={(e) => setAgentUrl(e.target.value)}
               style={{ flex: 1 }}
+              disabled={authenticating}
             />
             <BusyIndicator active={discovering} size="S">
-              <Button onClick={handleDiscover} disabled={!agentUrl || discovering}>
+              <Button onClick={handleDiscover} disabled={!agentUrl || discovering || authenticating}>
                 Discover
               </Button>
             </BusyIndicator>
@@ -128,13 +236,19 @@ export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
 
         {/* Proxy Toggle */}
         <FlexBox alignItems="Center" style={{ gap: '0.75rem', padding: '0.5rem 0' }}>
-          <Switch checked={useProxy} onChange={(e) => setUseProxy(e.target.checked)} />
+          <Switch
+            checked={hasOidc ? true : useProxy}
+            onChange={(e) => setUseProxy(e.target.checked)}
+            disabled={hasOidc || authenticating}
+          />
           <FlexBox direction="Column" style={{ gap: '0.25rem' }}>
             <Text style={{ fontWeight: 600, fontSize: '0.875rem' }}>Use Proxy Server</Text>
             <Text style={{ fontSize: '0.75rem', color: 'var(--sapContent_LabelColor)' }}>
-              {useProxy
-                ? 'Requests will go through localhost:3001 proxy (bypasses CORS)'
-                : 'Direct connection to agent (requires CORS configuration)'}
+              {hasOidc
+                ? 'Proxy is required for authenticated agents'
+                : useProxy
+                  ? 'Requests will go through localhost:3001 proxy (bypasses CORS)'
+                  : 'Direct connection to agent (requires CORS configuration)'}
             </Text>
           </FlexBox>
         </FlexBox>
@@ -142,6 +256,19 @@ export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
         {discoveryError && (
           <MessageStrip design="Negative" hideCloseButton>
             {discoveryError}
+          </MessageStrip>
+        )}
+
+        {authError && (
+          <MessageStrip design="Negative" hideCloseButton>
+            {authError}
+          </MessageStrip>
+        )}
+
+        {authenticating && (
+          <MessageStrip design="Information" hideCloseButton>
+            <BusyIndicator active size="S" style={{ marginRight: '0.5rem' }} />
+            Waiting for authentication in popup window...
           </MessageStrip>
         )}
 
@@ -157,7 +284,11 @@ export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
         )}
 
         {/* OIDC Configuration */}
-        <Panel headerText="Authentication (OIDC)" collapsed>
+        <Panel
+          headerText="Authentication (OIDC)"
+          collapsed={oidcPanelCollapsed}
+          onToggle={() => setOidcPanelCollapsed((c) => !c)}
+        >
           <FlexBox direction="Column" style={{ gap: '0.75rem', padding: '0.5rem' }}>
             <FlexBox direction="Column" style={{ gap: '0.25rem' }}>
               <Label>Issuer URL</Label>
@@ -166,6 +297,7 @@ export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
                 value={issuerUrl}
                 onInput={(e) => setIssuerUrl(e.target.value)}
                 style={{ width: '100%' }}
+                disabled={authenticating}
               />
             </FlexBox>
             <FlexBox direction="Column" style={{ gap: '0.25rem' }}>
@@ -174,15 +306,17 @@ export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
                 value={clientId}
                 onInput={(e) => setClientId(e.target.value)}
                 style={{ width: '100%' }}
+                disabled={authenticating}
               />
             </FlexBox>
             <FlexBox direction="Column" style={{ gap: '0.25rem' }}>
-              <Label>Client Secret</Label>
+              <Label>Client Secret (optional)</Label>
               <Input
                 type="Password"
                 value={clientSecret}
                 onInput={(e) => setClientSecret(e.target.value)}
                 style={{ width: '100%' }}
+                disabled={authenticating}
               />
             </FlexBox>
             <FlexBox direction="Column" style={{ gap: '0.25rem' }}>
@@ -192,15 +326,17 @@ export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
                 value={scopes}
                 onInput={(e) => setScopes(e.target.value)}
                 style={{ width: '100%' }}
+                disabled={authenticating}
               />
             </FlexBox>
             <FlexBox direction="Column" style={{ gap: '0.25rem' }}>
-              <Label>Token Endpoint (optional, overrides discovery)</Label>
+              <Label>Audience / Resource (optional)</Label>
               <Input
-                placeholder="https://auth.example.com/oauth/token"
-                value={tokenEndpoint}
-                onInput={(e) => setTokenEndpoint(e.target.value)}
+                placeholder="api://my-resource"
+                value={audience}
+                onInput={(e) => setAudience(e.target.value)}
                 style={{ width: '100%' }}
+                disabled={authenticating}
               />
             </FlexBox>
           </FlexBox>
