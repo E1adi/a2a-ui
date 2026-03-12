@@ -164,11 +164,16 @@ app.post('/auth/start-auth', async (req, res) => {
  * The page extracts code/state/error from URL params and sends them to the parent via postMessage.
  */
 app.get('/auth/callback', (req, res) => {
+  // Log callback params for debugging
+  if (req.query.code) {
+    console.log(`[${new Date().toISOString()}] Auth callback received: state=${req.query.state}`);
+  }
+
   res.send(`<!DOCTYPE html>
 <html>
 <head><title>Authorization Callback</title></head>
 <body>
-<p>Processing authorization...</p>
+<p id="status">Processing authorization...</p>
 <script>
 (function() {
   var params = new URLSearchParams(window.location.search);
@@ -185,9 +190,29 @@ app.get('/auth/callback', (req, res) => {
       error: error,
       errorDescription: errorDescription
     }, '*');
+    setTimeout(function() { window.close(); }, 1000);
+  } else if (code && state) {
+    // Opened directly (not as popup) — exchange code here
+    document.getElementById('status').textContent = 'Exchanging code for token...';
+    fetch('/auth/exchange-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code, state: state })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) {
+        document.getElementById('status').textContent = 'Authentication successful! You can close this tab.';
+      } else {
+        document.getElementById('status').textContent = 'Token exchange failed: ' + (data.message || 'Unknown error');
+      }
+    })
+    .catch(function(err) {
+      document.getElementById('status').textContent = 'Error: ' + err.message;
+    });
+  } else if (error) {
+    document.getElementById('status').textContent = 'Authorization failed: ' + (errorDescription || error);
   }
-
-  setTimeout(function() { window.close(); }, 1000);
 })();
 </script>
 </body>
