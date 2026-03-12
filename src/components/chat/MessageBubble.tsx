@@ -11,11 +11,8 @@ interface MessageBubbleProps {
 
 function renderPart(part: Part, index: number) {
   switch (part.kind) {
-    case 'text':
-      // Remove "agent_result" prefix if present
+    case 'text': {
       let cleanedText = part.text;
-
-      // Remove various forms of agent_result
       cleanedText = cleanedText.replace(/^agent_result\s*\n+/im, '');
       cleanedText = cleanedText.replace(/^#+ agent_result\s*\n+/im, '');
       cleanedText = cleanedText.replace(/^agent_result$/im, '');
@@ -27,6 +24,7 @@ function renderPart(part: Part, index: number) {
           <ReactMarkdown>{cleanedText}</ReactMarkdown>
         </div>
       );
+    }
     case 'file':
       return (
         <div key={index} className="message-file">
@@ -43,7 +41,11 @@ function renderPart(part: Part, index: number) {
             <span>{part.file.name ?? 'File (embedded)'}</span>
           )}
           {part.file.mimeType && (
-            <span style={{ color: 'var(--sapContent_LabelColor)', fontSize: '0.75rem', marginLeft: '0.5rem' }}>
+            <span style={{
+              color: 'var(--sapContent_LabelColor)',
+              fontSize: 'var(--sapFontSmallSize)',
+              marginLeft: '0.5rem',
+            }}>
               ({part.file.mimeType})
             </span>
           )}
@@ -54,11 +56,13 @@ function renderPart(part: Part, index: number) {
         <pre
           key={index}
           style={{
-            background: 'var(--sapField_Background)',
-            padding: '0.5rem',
-            borderRadius: '4px',
+            background: 'var(--sapShell_Hover_Background)',
+            border: '1px solid var(--sapField_BorderColor)',
+            padding: '0.5rem 0.75rem',
+            borderRadius: '0.5rem',
             overflow: 'auto',
-            fontSize: '0.8125rem',
+            fontFamily: 'var(--sapContent_MonospaceFontFamily)',
+            fontSize: 'var(--sapFontSmallSize)',
             margin: '0.25rem 0',
           }}
         >
@@ -87,10 +91,10 @@ export function MessageBubble({ message, agentName, showAgentName }: MessageBubb
       {!isUser && showAgentName && agentName && (
         <Text
           style={{
-            fontSize: '0.75rem',
+            fontSize: 'var(--sapFontSmallSize)',
             color: 'var(--sapContent_LabelColor)',
-            marginLeft: '0.5rem',
-            fontWeight: 500,
+            marginLeft: '0.75rem',
+            fontFamily: 'var(--sapFontSemiboldFamily)',
           }}
         >
           {agentName}
@@ -100,15 +104,20 @@ export function MessageBubble({ message, agentName, showAgentName }: MessageBubb
         className={`message-bubble ${isUser ? 'message-user' : 'message-agent'}`}
         style={{
           maxWidth: '75%',
-          padding: '0.75rem 1rem',
-          borderRadius: isUser ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+          padding: '0.625rem 0.875rem',
+          borderRadius: isUser
+            ? 'var(--sapElement_BorderCornerRadius) var(--sapElement_BorderCornerRadius) 0.25rem var(--sapElement_BorderCornerRadius)'
+            : 'var(--sapElement_BorderCornerRadius) var(--sapElement_BorderCornerRadius) var(--sapElement_BorderCornerRadius) 0.25rem',
           background: isUser
             ? 'var(--sapButton_Emphasized_Background)'
             : 'var(--sapGroup_ContentBackground)',
           color: isUser
             ? 'var(--sapButton_Emphasized_TextColor)'
             : 'var(--sapTextColor)',
-          boxShadow: 'var(--sapContent_Shadow0)',
+          border: isUser
+            ? 'none'
+            : '1px solid var(--sapBorderColor)',
+          boxShadow: isUser ? 'none' : 'var(--sapContent_Shadow0)',
           wordBreak: 'break-word',
         }}
       >
@@ -119,31 +128,17 @@ export function MessageBubble({ message, agentName, showAgentName }: MessageBubb
         )}
 
         {isProcessing ? (
-          <div className="message-text" style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-            <span className="dot-animation" style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: 'var(--sapContent_LabelColor)',
-              animation: 'pulse 1.4s infinite ease-in-out',
-              animationDelay: '0s'
-            }} />
-            <span className="dot-animation" style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: 'var(--sapContent_LabelColor)',
-              animation: 'pulse 1.4s infinite ease-in-out',
-              animationDelay: '0.2s'
-            }} />
-            <span className="dot-animation" style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: 'var(--sapContent_LabelColor)',
-              animation: 'pulse 1.4s infinite ease-in-out',
-              animationDelay: '0.4s'
-            }} />
+          <div className="message-text" style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', padding: '0.25rem 0' }}>
+            {[0, 0.2, 0.4].map((delay) => (
+              <span key={delay} style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: 'var(--sapContent_LabelColor)',
+                animation: 'pulse 1.4s infinite ease-in-out',
+                animationDelay: `${delay}s`,
+              }} />
+            ))}
           </div>
         ) : isStreaming && message.streamingContent ? (
           <div className="message-text">

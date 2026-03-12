@@ -10,7 +10,7 @@ export function StatusIndicator({ statusText, agentName }: StatusIndicatorProps)
     <FlexBox
       direction="Column"
       style={{
-        padding: '0.5rem 1rem',
+        padding: '0.25rem 0',
         gap: '0.25rem',
         alignItems: 'flex-start',
       }}
@@ -18,10 +18,10 @@ export function StatusIndicator({ statusText, agentName }: StatusIndicatorProps)
       {agentName && (
         <Text
           style={{
-            fontSize: '0.75rem',
+            fontSize: 'var(--sapFontSmallSize)',
             color: 'var(--sapContent_LabelColor)',
-            marginLeft: '0.5rem',
-            fontWeight: 500,
+            marginLeft: '0.75rem',
+            fontFamily: 'var(--sapFontSemiboldFamily)',
           }}
         >
           {agentName}
@@ -32,50 +32,30 @@ export function StatusIndicator({ statusText, agentName }: StatusIndicatorProps)
         style={{
           gap: '0.5rem',
           padding: '0.5rem 0.75rem',
-          borderRadius: '8px',
-          background: 'rgba(var(--sapContent_ForegroundColor_RGB, 50, 54, 58), 0.04)',
+          borderRadius: 'var(--sapElement_BorderCornerRadius)',
+          background: 'var(--sapInformationBackground)',
+          border: '1px solid var(--sapInformativeBorderColor, var(--sapInformativeColor))',
         }}
       >
         <FlexBox style={{ gap: '0.25rem', alignItems: 'center' }}>
-          <span
-            className="dot-animation"
-            style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: 'var(--sapContent_LabelColor)',
-              animation: 'pulse 1.4s infinite ease-in-out',
-              animationDelay: '0s',
-            }}
-          />
-          <span
-            className="dot-animation"
-            style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: 'var(--sapContent_LabelColor)',
-              animation: 'pulse 1.4s infinite ease-in-out',
-              animationDelay: '0.2s',
-            }}
-          />
-          <span
-            className="dot-animation"
-            style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: 'var(--sapContent_LabelColor)',
-              animation: 'pulse 1.4s infinite ease-in-out',
-              animationDelay: '0.4s',
-            }}
-          />
+          {[0, 0.2, 0.4].map((delay) => (
+            <span
+              key={delay}
+              style={{
+                width: '5px',
+                height: '5px',
+                borderRadius: '50%',
+                background: 'var(--sapInformativeColor)',
+                animation: 'pulse 1.4s infinite ease-in-out',
+                animationDelay: `${delay}s`,
+              }}
+            />
+          ))}
         </FlexBox>
         <Text
           style={{
-            fontSize: '0.875rem',
-            color: 'var(--sapContent_LabelColor)',
-            fontStyle: 'italic',
+            fontSize: 'var(--sapFontSmallSize)',
+            color: 'var(--sapInformativeTextColor)',
           }}
         >
           {statusText}

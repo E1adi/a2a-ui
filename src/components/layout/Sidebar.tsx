@@ -12,6 +12,8 @@ import {
   Icon,
 } from '@ui5/webcomponents-react';
 import '@ui5/webcomponents-icons/dist/chain-link.js';
+import '@ui5/webcomponents-icons/dist/discussion.js';
+import '@ui5/webcomponents-icons/dist/add.js';
 import { useAgents } from '../../hooks/useAgents.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { useAgentStore } from '../../store/agentStore.ts';
@@ -77,7 +79,6 @@ export function Sidebar() {
     const status = getAuthStatus(agentId, !!agent.auth?.clientId);
 
     if (status === 'disconnected' && agent.auth) {
-      // Auto-trigger re-auth popup
       try {
         await authenticate(agentId, agent.agentUrl, agent.auth);
       } catch (err) {
@@ -98,7 +99,7 @@ export function Sidebar() {
           width: '320px',
           background: 'var(--sapBackgroundColor)',
           overflow: 'hidden',
-          boxShadow: '2px 0 8px rgba(0, 0, 0, 0.04)',
+          borderRight: '1px solid var(--sapBorderColor)',
         }}
       >
         {/* Agent Strip (Left) */}
@@ -106,10 +107,10 @@ export function Sidebar() {
           direction="Column"
           style={{
             width: '72px',
-            background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.3))',
-            backdropFilter: 'blur(10px)',
-            padding: '1.25rem 0.5rem',
-            gap: '1.25rem',
+            background: 'var(--sapShellColor)',
+            borderRight: '1px solid var(--sapBorderColor)',
+            padding: '1rem 0.5rem',
+            gap: '1rem',
             alignItems: 'center',
             overflow: 'auto',
           }}
@@ -129,8 +130,8 @@ export function Sidebar() {
                   position: 'relative',
                   alignItems: 'center',
                   cursor: 'pointer',
-                  gap: '0.5rem',
-                  transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  gap: '0.375rem',
+                  transition: 'transform 0.2s ease',
                 }}
                 onClick={() => handleAgentClick(agent.id)}
                 title={
@@ -140,11 +141,11 @@ export function Sidebar() {
                 }
                 onMouseEnter={(e) => {
                   if (!isSelected) {
-                    e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)';
+                    e.currentTarget.style.transform = 'scale(1.05)';
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                  e.currentTarget.style.transform = 'scale(1)';
                 }}
               >
                 <div style={{ position: 'relative', display: 'inline-flex' }}>
@@ -154,11 +155,11 @@ export function Sidebar() {
                     colorScheme={`Accent${(agents.indexOf(agent) % 10) + 1}` as any}
                     style={{
                       cursor: 'pointer',
-                      boxShadow: isSelected
-                        ? '0 4px 12px rgba(10, 110, 209, 0.3), 0 0 0 3px rgba(10, 110, 209, 0.1)'
-                        : '0 2px 8px rgba(0, 0, 0, 0.08)',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+                      outline: isSelected
+                        ? '2.5px solid var(--sapSelectedColor)'
+                        : '2.5px solid transparent',
+                      outlineOffset: '2px',
+                      transition: 'all 0.2s ease',
                       opacity: isDisconnected ? 0.5 : 1,
                       filter: isDisconnected ? 'grayscale(60%)' : 'none',
                     }}
@@ -172,19 +173,19 @@ export function Sidebar() {
                         width: '18px',
                         height: '18px',
                         borderRadius: '50%',
-                        background: 'var(--sapNegativeColor, #bb0000)',
+                        background: 'var(--sapNegativeColor)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                        border: '2px solid var(--sapShellColor)',
                       }}
                     >
                       <Icon
                         name="chain-link"
                         style={{
-                          width: '12px',
-                          height: '12px',
-                          color: 'white',
+                          width: '10px',
+                          height: '10px',
+                          color: 'var(--sapContent_ContrastTextColor)',
                         }}
                       />
                     </div>
@@ -193,11 +194,11 @@ export function Sidebar() {
                 {convCount > 0 && (
                   <div
                     style={{
-                      fontSize: '10px',
-                      color: isSelected ? 'var(--sapButton_Emphasized_Background)' : 'var(--sapContent_LabelColor)',
-                      fontWeight: 700,
+                      fontSize: '0.625rem',
+                      color: isSelected ? 'var(--sapSelectedColor)' : 'var(--sapContent_LabelColor)',
+                      fontFamily: 'var(--sapFontSemiboldFamily)',
                       transition: 'color 0.2s ease',
-                      letterSpacing: '0.5px',
+                      letterSpacing: '0.025em',
                     }}
                   >
                     {convCount}
@@ -241,24 +242,21 @@ export function Sidebar() {
               height: '40px',
               borderRadius: '50%',
               background: 'var(--sapButton_Emphasized_Background)',
-              color: 'white',
+              color: 'var(--sapContent_ContrastTextColor)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(10, 110, 209, 0.25)',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              transition: 'all 0.2s ease',
               fontSize: '20px',
               fontWeight: 300,
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 6px 16px rgba(10, 110, 209, 0.35)';
+              e.currentTarget.style.transform = 'scale(1.1)';
               e.currentTarget.style.background = 'var(--sapButton_Emphasized_Hover_Background)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(10, 110, 209, 0.25)';
+              e.currentTarget.style.transform = 'scale(1)';
               e.currentTarget.style.background = 'var(--sapButton_Emphasized_Background)';
             }}
             onMouseDown={(e) => {
@@ -280,10 +278,8 @@ export function Sidebar() {
           <Bar
             startContent={
               <Title level="H5" style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: 'var(--sapTextColor)',
-                letterSpacing: '-0.01em',
+                fontSize: 'var(--sapFontSize)',
+                color: 'var(--sapTitleColor)',
               }}>
                 {selectedAgent ? selectedAgent.agentCard?.name ?? selectedAgent.agentUrl : 'Conversations'}
               </Title>
@@ -295,26 +291,12 @@ export function Sidebar() {
                   design="Transparent"
                   tooltip="New Conversation"
                   onClick={() => createConversation(selectedAgent.id)}
-                  style={{
-                    color: 'var(--sapButton_Emphasized_Background)',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'scale(1.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
                 />
               )
             }
             style={{
               flexShrink: 0,
-              background: 'linear-gradient(to bottom, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4))',
-              borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
-              paddingTop: '0.75rem',
-              paddingBottom: '0.75rem',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+              borderBottom: '1px solid var(--sapBorderColor)',
             }}
           />
           <List
@@ -337,18 +319,20 @@ export function Sidebar() {
                 justifyContent="Center"
                 style={{ padding: '4rem 2rem', gap: '0.75rem' }}
               >
-                <div style={{
-                  fontSize: '56px',
-                  opacity: 0.15,
-                  marginBottom: '0.5rem',
-                  filter: 'grayscale(100%)',
-                }}>💬</div>
+                <Icon
+                  name="discussion"
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    color: 'var(--sapContent_NonInteractiveIconColor, var(--sapContent_IconColor))',
+                    opacity: 0.3,
+                  }}
+                />
                 <Text style={{
                   color: 'var(--sapContent_LabelColor)',
                   textAlign: 'center',
-                  fontSize: '0.8125rem',
+                  fontSize: 'var(--sapFontSmallSize)',
                   lineHeight: '1.5',
-                  opacity: 0.8,
                 }}>
                   Select an agent to view conversations
                 </Text>
@@ -360,19 +344,21 @@ export function Sidebar() {
                 justifyContent="Center"
                 style={{ padding: '4rem 2rem', gap: '0.75rem' }}
               >
-                <div style={{
-                  fontSize: '56px',
-                  opacity: 0.15,
-                  marginBottom: '0.5rem',
-                  filter: 'grayscale(20%)',
-                }}>✨</div>
+                <Icon
+                  name="add"
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    color: 'var(--sapContent_NonInteractiveIconColor, var(--sapContent_IconColor))',
+                    opacity: 0.3,
+                  }}
+                />
                 <Text style={{
                   color: 'var(--sapContent_LabelColor)',
                   textAlign: 'center',
-                  fontSize: '0.8125rem',
+                  fontSize: 'var(--sapFontSmallSize)',
                   lineHeight: '1.5',
                   maxWidth: '200px',
-                  opacity: 0.8,
                 }}>
                   No conversations yet. Click + to start chatting.
                 </Text>
@@ -389,12 +375,8 @@ export function Sidebar() {
                       selected={isSelected}
                       description={new Date(conv.updatedAt).toLocaleString()}
                       style={{
-                        borderLeft: 'none',
-                        borderRadius: '8px',
+                        borderRadius: '0.5rem',
                         margin: '0.25rem 0.5rem',
-                        background: isSelected ? 'rgba(10, 110, 209, 0.08)' : 'transparent',
-                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                        boxShadow: isSelected ? '0 2px 8px rgba(10, 110, 209, 0.12)' : 'none',
                       }}
                     >
                       <FlexBox justifyContent="SpaceBetween" alignItems="Center" style={{ width: '100%', gap: '0.5rem' }}>
@@ -403,10 +385,7 @@ export function Sidebar() {
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
-                          fontSize: '0.8125rem',
-                          fontWeight: isSelected ? 600 : 400,
-                          color: isSelected ? 'var(--sapButton_Emphasized_Background)' : 'inherit',
-                          transition: 'color 0.2s ease',
+                          fontSize: 'var(--sapFontSize)',
                         }}>
                           {conv.title}
                         </span>
@@ -471,7 +450,7 @@ export function Sidebar() {
             Are you sure you want to delete{' '}
             {confirmDialog.type === 'agent' ? 'this agent' : 'this conversation'}?
           </Text>
-          <Text style={{ fontWeight: 'bold' }}>{confirmDialog.name}</Text>
+          <Text style={{ fontFamily: 'var(--sapFontSemiboldFamily)' }}>{confirmDialog.name}</Text>
           {confirmDialog.type === 'agent' && (
             <Text style={{ color: 'var(--sapNegativeTextColor)' }}>
               This will also delete all conversations with this agent.

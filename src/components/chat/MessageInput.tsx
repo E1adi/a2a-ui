@@ -33,37 +33,40 @@ export function MessageInput({ onSend, streaming, onCancel }: MessageInputProps)
   };
 
   return (
-    <FlexBox
-      alignItems="Stretch"
-      style={{
-        padding: '0.75rem 1rem',
-        gap: '0.5rem',
-        borderTop: '1px solid var(--sapBorderColor)',
-        background: 'var(--sapGroup_ContentBackground)',
-        flexShrink: 0,
-      }}
-    >
-      <TextArea
-        value={text}
-        onInput={(e) => setText(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="Type a message... (Enter to send, Shift+Enter for newline)"
-        rows={1}
-        growing
-        growingMaxRows={6}
-        disabled={streaming}
-        style={{ flex: 1 }}
-      />
-      <Button
-        design={streaming ? 'Negative' : 'Emphasized'}
-        icon={streaming ? 'decline' : 'paper-plane'}
-        onClick={handleButtonClick}
-        disabled={!streaming && !text.trim()}
-        tooltip={streaming ? 'Cancel' : 'Send Message'}
+    <div style={{
+      padding: '0.75rem 1rem',
+      background: 'var(--sapGroup_ContentBackground)',
+      borderTop: '1px solid var(--sapBorderColor)',
+      flexShrink: 0,
+    }}>
+      <FlexBox
+        alignItems="End"
         style={{
-          flexShrink: 0,
+          gap: '0.5rem',
+          maxWidth: '900px',
+          margin: '0 auto',
         }}
-      />
-    </FlexBox>
+      >
+        <TextArea
+          value={text}
+          onInput={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Type a message... (Enter to send, Shift+Enter for newline)"
+          rows={1}
+          growing
+          growingMaxRows={6}
+          disabled={streaming}
+          style={{ flex: 1 }}
+        />
+        <Button
+          design={streaming ? 'Negative' : 'Emphasized'}
+          icon={streaming ? 'decline' : 'paper-plane'}
+          onClick={handleButtonClick}
+          disabled={!streaming && !text.trim()}
+          tooltip={streaming ? 'Cancel' : 'Send Message'}
+          style={{ flexShrink: 0 }}
+        />
+      </FlexBox>
+    </div>
   );
 }

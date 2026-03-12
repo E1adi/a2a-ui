@@ -14,7 +14,7 @@ export function AgentCardHeader({ agent }: AgentCardHeaderProps) {
     <FlexBox
       alignItems="Center"
       style={{
-        padding: '0.75rem 1rem',
+        padding: '0.625rem 1rem',
         gap: '0.75rem',
         borderBottom: '1px solid var(--sapBorderColor)',
         background: 'var(--sapGroup_ContentBackground)',
@@ -22,15 +22,21 @@ export function AgentCardHeader({ agent }: AgentCardHeaderProps) {
       }}
     >
       <Avatar initials={initial} size="S" colorScheme="Accent6" />
-      <FlexBox direction="Column" style={{ gap: '0.125rem', flex: 1 }}>
-        <Title level="H5">{name}</Title>
+      <FlexBox direction="Column" style={{ gap: '0.125rem', flex: 1, minWidth: 0 }}>
+        <Title level="H5" style={{ fontSize: 'var(--sapFontLargeSize)' }}>{name}</Title>
         {card?.description && (
-          <Label style={{ color: 'var(--sapContent_LabelColor)' }}>
+          <Label style={{
+            color: 'var(--sapContent_LabelColor)',
+            fontSize: 'var(--sapFontSmallSize)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
             {card.description}
           </Label>
         )}
       </FlexBox>
-      <FlexBox style={{ gap: '0.25rem' }}>
+      <FlexBox style={{ gap: '0.25rem', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
         {card?.capabilities?.streaming && (
           <Tag colorScheme="8">Streaming</Tag>
         )}
