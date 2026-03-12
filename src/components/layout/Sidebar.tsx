@@ -99,7 +99,9 @@ export function Sidebar() {
           width: '320px',
           background: 'var(--sapBackgroundColor)',
           overflow: 'hidden',
-          borderRight: '1px solid var(--sapBorderColor)',
+          borderRight: 'none',
+          boxShadow: '2px 0 8px rgba(0, 0, 0, 0.04)',
+          zIndex: 1,
         }}
       >
         {/* Agent Strip (Left) */}
@@ -108,7 +110,7 @@ export function Sidebar() {
           style={{
             width: '72px',
             background: 'var(--sapShellColor)',
-            borderRight: '1px solid var(--sapBorderColor)',
+            borderRight: '1px solid color-mix(in srgb, var(--sapField_BorderColor) 15%, transparent)',
             padding: '1rem 0.5rem',
             gap: '1rem',
             alignItems: 'center',
@@ -126,6 +128,7 @@ export function Sidebar() {
               <FlexBox
                 key={agent.id}
                 direction="Column"
+                className="agent-avatar-item"
                 style={{
                   position: 'relative',
                   alignItems: 'center',
@@ -190,6 +193,39 @@ export function Sidebar() {
                       />
                     </div>
                   )}
+                  {!isDisconnected && (
+                    <div
+                      className="agent-delete-badge"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteAgent(agent.id, agentName);
+                      }}
+                      title="Delete Agent"
+                      style={{
+                        position: 'absolute',
+                        top: '-4px',
+                        right: '-4px',
+                        width: '16px',
+                        height: '16px',
+                        borderRadius: '50%',
+                        background: 'var(--sapNegativeColor)',
+                        color: 'var(--sapContent_ContrastTextColor)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        lineHeight: 1,
+                        border: '2px solid var(--sapShellColor)',
+                        cursor: 'pointer',
+                        opacity: 0,
+                        transform: 'scale(0.5)',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      ×
+                    </div>
+                  )}
                 </div>
                 {convCount > 0 && (
                   <div
@@ -203,32 +239,6 @@ export function Sidebar() {
                   >
                     {convCount}
                   </div>
-                )}
-                {isSelected && (
-                  <Button
-                    icon="delete"
-                    design="Transparent"
-                    tooltip="Delete Agent"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteAgent(agent.id, agentName);
-                    }}
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      minWidth: '28px',
-                      padding: 0,
-                      color: 'var(--sapNegativeColor)',
-                      opacity: 0.7,
-                      transition: 'opacity 0.2s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.opacity = '1';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.opacity = '0.7';
-                    }}
-                  />
                 )}
               </FlexBox>
             );
@@ -296,7 +306,8 @@ export function Sidebar() {
             }
             style={{
               flexShrink: 0,
-              borderBottom: '1px solid var(--sapBorderColor)',
+              borderBottom: 'none',
+              boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)',
             }}
           />
           <List
@@ -375,7 +386,7 @@ export function Sidebar() {
                       selected={isSelected}
                       description={new Date(conv.updatedAt).toLocaleString()}
                       style={{
-                        borderRadius: '0.5rem',
+                        borderRadius: 'var(--sapElement_BorderCornerRadius)',
                         margin: '0.25rem 0.5rem',
                       }}
                     >
@@ -425,7 +436,7 @@ export function Sidebar() {
       <AddAgentDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
       <Dialog
         open={confirmDialog.open}
-        onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}
+        onClose={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
         headerText={`Delete ${confirmDialog.type === 'agent' ? 'Agent' : 'Conversation'}`}
         footer={
           <Bar

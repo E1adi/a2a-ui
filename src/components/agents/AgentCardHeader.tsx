@@ -16,14 +16,28 @@ export function AgentCardHeader({ agent }: AgentCardHeaderProps) {
       style={{
         padding: '0.625rem 1rem',
         gap: '0.75rem',
-        borderBottom: '1px solid var(--sapBorderColor)',
+        borderBottom: 'none',
+        boxShadow: 'var(--sapContent_Shadow0)',
         background: 'var(--sapGroup_ContentBackground)',
         flexShrink: 0,
       }}
     >
-      <Avatar initials={initial} size="S" colorScheme="Accent6" />
+      <div
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 10,
+          background: 'color-mix(in srgb, var(--sapSelectedColor) 8%, transparent)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <Avatar initials={initial} size="XS" colorScheme="Accent6" />
+      </div>
       <FlexBox direction="Column" style={{ gap: '0.125rem', flex: 1, minWidth: 0 }}>
-        <Title level="H5" style={{ fontSize: 'var(--sapFontLargeSize)' }}>{name}</Title>
+        <Title level="H5" style={{ fontSize: 'var(--sapFontLargeSize)', fontFamily: 'var(--sapFontSemiboldFamily)' }}>{name}</Title>
         {card?.description && (
           <Label style={{
             color: 'var(--sapContent_LabelColor)',

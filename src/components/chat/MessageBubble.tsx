@@ -107,17 +107,16 @@ export function MessageBubble({ message, agentName, showAgentName }: MessageBubb
           padding: '0.625rem 0.875rem',
           borderRadius: isUser
             ? 'var(--sapElement_BorderCornerRadius) var(--sapElement_BorderCornerRadius) 0.25rem var(--sapElement_BorderCornerRadius)'
-            : 'var(--sapElement_BorderCornerRadius) var(--sapElement_BorderCornerRadius) var(--sapElement_BorderCornerRadius) 0.25rem',
+            : 'var(--sapElement_BorderCornerRadius)',
           background: isUser
             ? 'var(--sapButton_Emphasized_Background)'
-            : 'var(--sapGroup_ContentBackground)',
+            : 'var(--sapBaseColor)',
           color: isUser
             ? 'var(--sapButton_Emphasized_TextColor)'
             : 'var(--sapTextColor)',
           border: isUser
             ? 'none'
             : '1px solid var(--sapBorderColor)',
-          boxShadow: isUser ? 'none' : 'var(--sapContent_Shadow0)',
           wordBreak: 'break-word',
         }}
       >

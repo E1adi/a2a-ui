@@ -32,7 +32,7 @@ export function StatusIndicator({ statusText, agentName }: StatusIndicatorProps)
         style={{
           gap: '0.5rem',
           padding: '0.5rem 0.75rem',
-          borderRadius: 'var(--sapElement_BorderCornerRadius)',
+          borderRadius: '999px',
           background: 'var(--sapInformationBackground)',
           border: '1px solid var(--sapInformativeBorderColor, var(--sapInformativeColor))',
         }}
@@ -42,8 +42,8 @@ export function StatusIndicator({ statusText, agentName }: StatusIndicatorProps)
             <span
               key={delay}
               style={{
-                width: '5px',
-                height: '5px',
+                width: '4px',
+                height: '4px',
                 borderRadius: '50%',
                 background: 'var(--sapInformativeColor)',
                 animation: 'pulse 1.4s infinite ease-in-out',

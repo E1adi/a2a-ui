@@ -36,7 +36,8 @@ export function MessageInput({ onSend, streaming, onCancel }: MessageInputProps)
     <div style={{
       padding: '0.75rem 1rem',
       background: 'var(--sapGroup_ContentBackground)',
-      borderTop: '1px solid var(--sapBorderColor)',
+      borderTop: 'none',
+      boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.04)',
       flexShrink: 0,
     }}>
       <FlexBox

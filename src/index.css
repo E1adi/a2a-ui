@@ -1,9 +1,22 @@
 /* Global styles using SAP Horizon CSS variables */
 
-* {
+*, *::before, *::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  transition: color 0.2s ease, background-color 0.2s ease,
+              border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Prevent global transitions from breaking UI5 web component animations */
+ui5-dialog,
+ui5-popover,
+ui5-responsive-popover,
+ui5-messagestrip,
+ui5-dialog *,
+ui5-popover *,
+ui5-responsive-popover * {
+  transition: none !important;
 }
 
 html, body, #root {
@@ -31,12 +44,12 @@ html, body, #root {
 }
 
 .message-text pre {
-  background: var(--sapShell_Hover_Background);
-  border: 1px solid var(--sapField_BorderColor);
-  padding: 0.75rem 1rem;
+  background: var(--sapBackgroundColor);
+  border: 1px solid var(--sapBorderColor);
+  padding: 0.625rem 0.875rem;
   border-radius: 0.5rem;
   overflow-x: auto;
-  font-family: var(--sapContent_MonospaceFontFamily);
+  font-family: 'SF Mono', 'Fira Code', var(--sapContent_MonospaceFontFamily);
   font-size: var(--sapFontSmallSize);
   margin: 0.5rem 0;
   line-height: 1.5;
@@ -53,6 +66,10 @@ html, body, #root {
   border-radius: 0.25rem;
   border: 1px solid var(--sapField_BorderColor);
   font-size: 0.85em;
+}
+
+.message-agent {
+  box-shadow: var(--sapContent_Shadow0);
 }
 
 /* User message code blocks: light-on-brand */
@@ -142,6 +159,18 @@ html, body, #root {
   border: none;
   border-top: 1px solid var(--sapBorderColor);
   margin: 0.75rem 0;
+}
+
+/* ── Agent delete badge (hover reveal) ── */
+.agent-avatar-item:hover .agent-delete-badge {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+  pointer-events: auto !important;
+}
+
+.agent-delete-badge:hover {
+  background: var(--sapNegativeColor) !important;
+  filter: brightness(1.15);
 }
 
 /* ── Streaming cursor animation ── */
