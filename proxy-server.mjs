@@ -631,17 +631,11 @@ app.all('/proxy', async (req, res) => {
     const contentType = response.headers.get('content-type') || '';
 
     if (contentType.includes('text/event-stream')) {
-      // Stream SSE responses
-      const responseHeaders = {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      };
-      // Pass through X-Auth-Status if set
-      if (res.getHeader('X-Auth-Status')) {
-        responseHeaders['X-Auth-Status'] = res.getHeader('X-Auth-Status');
-      }
-      res.writeHead(response.status, responseHeaders);
+      // Stream SSE responses — set headers individually to preserve CORS headers from middleware
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.status(response.status);
 
       response.body.pipe(res);
 
@@ -657,10 +651,15 @@ app.all('/proxy', async (req, res) => {
       // Handle regular responses
       const data = await response.text();
 
-      // Copy response headers
+      // Copy response headers (skip CORS and problematic headers — cors middleware handles CORS)
+      const skipHeaders = new Set([
+        'transfer-encoding', 'connection', 'keep-alive',
+        'access-control-allow-origin', 'access-control-allow-credentials',
+        'access-control-allow-methods', 'access-control-allow-headers',
+        'access-control-expose-headers', 'access-control-max-age',
+      ]);
       response.headers.forEach((value, key) => {
-        // Skip problematic headers
-        if (!['transfer-encoding', 'connection', 'keep-alive'].includes(key.toLowerCase())) {
+        if (!skipHeaders.has(key.toLowerCase())) {
           res.setHeader(key, value);
         }
       });
