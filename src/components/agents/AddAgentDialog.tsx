@@ -32,6 +32,7 @@ export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
   const setAuthStatus = useAgentStore((s) => s.setAuthStatus);
 
   const [agentUrl, setAgentUrl] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [agentCard, setAgentCard] = useState<AgentCard | null>(null);
   const [useProxy, setUseProxy] = useState(true);
 
@@ -58,6 +59,7 @@ export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
 
   const resetForm = useCallback(() => {
     setAgentUrl('');
+    setDisplayName('');
     setAgentCard(null);
     setUseProxy(true);
     setIssuerUrl('');
@@ -132,7 +134,7 @@ export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
         await authenticate(agentId, effectiveUrl, oidcConfig);
         // Retry discovery — proxy now has token and will match by URL
         card = await A2AClient.discoverAgent(effectiveUrl, true);
-        const result = saveAgent(effectiveUrl, card!, oidcConfig, true, agentId);
+        const result = saveAgent(effectiveUrl, card!, oidcConfig, true, agentId, displayName);
         if (result) {
           setAuthStatus(agentId, 'connected');
           resetForm();
@@ -163,7 +165,7 @@ export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
         await authenticate(agentId, effectiveUrl, oidcConfig);
 
         // Auth succeeded — save agent
-        const result = saveAgent(effectiveUrl, card!, oidcConfig, true, agentId);
+        const result = saveAgent(effectiveUrl, card!, oidcConfig, true, agentId, displayName);
         if (result) {
           setAuthStatus(agentId, 'connected');
           resetForm();
@@ -176,7 +178,7 @@ export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
       }
     } else {
       // No OIDC: save directly
-      const result = saveAgent(effectiveUrl, card!, undefined, effectiveUseProxy);
+      const result = saveAgent(effectiveUrl, card!, undefined, effectiveUseProxy, undefined, displayName);
       if (result) {
         resetForm();
         onClose();
@@ -232,6 +234,18 @@ export function AddAgentDialog({ open, onClose }: AddAgentDialogProps) {
               </Button>
             </BusyIndicator>
           </FlexBox>
+        </FlexBox>
+
+        {/* Display Name (optional) */}
+        <FlexBox direction="Column" style={{ gap: '0.25rem' }}>
+          <Label>Display Name (optional)</Label>
+          <Input
+            placeholder="e.g. My Weather Agent"
+            value={displayName}
+            onInput={(e) => setDisplayName(e.target.value)}
+            style={{ width: '100%' }}
+            disabled={authenticating}
+          />
         </FlexBox>
 
         {/* Proxy Toggle */}

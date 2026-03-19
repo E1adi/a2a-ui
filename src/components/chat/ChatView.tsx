@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { FlexBox, IllustratedMessage } from '@ui5/webcomponents-react';
 import '@ui5/webcomponents-fiori/dist/illustrations/NoData.js';
 import { useAgents } from '../../hooks/useAgents.ts';
@@ -28,6 +29,14 @@ export function ChatView() {
   const streaming = conversation ? isStreaming(conversation.id) : false;
   const currentStatus = conversation?.currentStatus;
 
+  const userMessageHistory = useMemo(() =>
+    (conversation?.messages ?? [])
+      .filter((m) => m.role === 'user')
+      .map((m) => m.parts.filter((p) => p.kind === 'text').map((p) => p.text).join('\n'))
+      .filter(Boolean),
+    [conversation?.messages],
+  );
+
   const handleSend = (text: string) => {
     sendMessage(selectedAgent, text);
   };
@@ -47,7 +56,7 @@ export function ChatView() {
         agent={selectedAgent}
         currentStatus={currentStatus}
       />
-      <MessageInput onSend={handleSend} streaming={streaming} onCancel={handleCancel} />
+      <MessageInput onSend={handleSend} streaming={streaming} onCancel={handleCancel} userMessageHistory={userMessageHistory} />
     </FlexBox>
   );
 }

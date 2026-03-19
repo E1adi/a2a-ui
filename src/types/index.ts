@@ -13,6 +13,7 @@ export type AuthStatus = 'connected' | 'disconnected' | 'none';
 export interface AgentConfig {
   id: string;
   agentUrl: string;
+  displayName?: string;
   agentCard?: AgentCard;
   auth?: OidcConfig;
   useProxy?: boolean;

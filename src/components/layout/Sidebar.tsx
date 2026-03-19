@@ -81,6 +81,7 @@ export function Sidebar() {
     if (status === 'disconnected' && agent.auth) {
       try {
         await authenticate(agentId, agent.agentUrl, agent.auth);
+        selectAgent(agentId);
       } catch (err) {
         console.error('[Sidebar] Re-auth failed:', err);
       }
@@ -118,9 +119,8 @@ export function Sidebar() {
           }}
         >
           {agents.map((agent) => {
-            const agentName = agent.agentCard?.name ?? agent.agentUrl;
+            const agentName = agent.displayName || agent.agentCard?.name || agent.agentUrl;
             const isSelected = agent.id === selectedAgentId;
-            const convCount = getConversationsForAgent(agent.id).length;
             const status = getAuthStatus(agent.id, !!agent.auth?.clientId);
             const isDisconnected = status === 'disconnected';
 
@@ -227,19 +227,6 @@ export function Sidebar() {
                     </div>
                   )}
                 </div>
-                {convCount > 0 && (
-                  <div
-                    style={{
-                      fontSize: '0.625rem',
-                      color: isSelected ? 'var(--sapSelectedColor)' : 'var(--sapContent_LabelColor)',
-                      fontFamily: 'var(--sapFontSemiboldFamily)',
-                      transition: 'color 0.2s ease',
-                      letterSpacing: '0.025em',
-                    }}
-                  >
-                    {convCount}
-                  </div>
-                )}
               </FlexBox>
             );
           })}
@@ -291,7 +278,7 @@ export function Sidebar() {
                 fontSize: 'var(--sapFontSize)',
                 color: 'var(--sapTitleColor)',
               }}>
-                {selectedAgent ? selectedAgent.agentCard?.name ?? selectedAgent.agentUrl : 'Conversations'}
+                {selectedAgent ? selectedAgent.displayName || selectedAgent.agentCard?.name || selectedAgent.agentUrl : 'Conversations'}
               </Title>
             }
             endContent={

@@ -7,7 +7,7 @@ interface AgentCardHeaderProps {
 
 export function AgentCardHeader({ agent }: AgentCardHeaderProps) {
   const card = agent.agentCard;
-  const name = card?.name ?? 'Agent';
+  const name = agent.displayName || card?.name || 'Agent';
   const initial = name.charAt(0).toUpperCase();
 
   return (

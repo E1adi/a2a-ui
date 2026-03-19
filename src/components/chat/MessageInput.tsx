@@ -1,26 +1,71 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useState, useCallback, type KeyboardEvent } from 'react';
 import { FlexBox, TextArea, Button } from '@ui5/webcomponents-react';
 
 interface MessageInputProps {
   onSend: (text: string) => void;
   streaming?: boolean;
   onCancel?: () => void;
+  userMessageHistory?: string[];
 }
 
-export function MessageInput({ onSend, streaming, onCancel }: MessageInputProps) {
+export function MessageInput({ onSend, streaming, onCancel, userMessageHistory = [] }: MessageInputProps) {
   const [text, setText] = useState('');
+  // -1 means "draft" (current unsent input), 0 = most recent sent message, 1 = second most recent, etc.
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [draft, setDraft] = useState('');
 
   const handleSend = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
     onSend(trimmed);
     setText('');
+    setHistoryIndex(-1);
+    setDraft('');
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey && !streaming) {
       e.preventDefault();
       handleSend();
+      return;
+    }
+
+    if (e.key === 'ArrowUp' && userMessageHistory.length > 0) {
+      e.preventDefault();
+      if (historyIndex === -1) {
+        // Save current input as draft before navigating
+        setDraft(text);
+        setHistoryIndex(0);
+        setText(userMessageHistory[userMessageHistory.length - 1]);
+      } else if (historyIndex < userMessageHistory.length - 1) {
+        const newIndex = historyIndex + 1;
+        setHistoryIndex(newIndex);
+        setText(userMessageHistory[userMessageHistory.length - 1 - newIndex]);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown' && historyIndex >= 0) {
+      e.preventDefault();
+      if (historyIndex === 0) {
+        // Back to draft
+        setHistoryIndex(-1);
+        setText(draft);
+      } else {
+        const newIndex = historyIndex - 1;
+        setHistoryIndex(newIndex);
+        setText(userMessageHistory[userMessageHistory.length - 1 - newIndex]);
+      }
+      return;
+    }
+  }, [text, historyIndex, draft, userMessageHistory, streaming]);
+
+  const handleInput = (value: string) => {
+    setText(value);
+    // Reset history navigation when user types manually
+    if (historyIndex !== -1) {
+      setHistoryIndex(-1);
+      setDraft('');
     }
   };
 
@@ -50,7 +95,7 @@ export function MessageInput({ onSend, streaming, onCancel }: MessageInputProps)
       >
         <TextArea
           value={text}
-          onInput={(e) => setText(e.target.value)}
+          onInput={(e) => handleInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Type a message... (Enter to send, Shift+Enter for newline)"
           rows={1}
