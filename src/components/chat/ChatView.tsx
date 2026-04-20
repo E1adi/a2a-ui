@@ -15,6 +15,17 @@ export function ChatView() {
     s.selectedConversationId ? s.conversations[s.selectedConversationId] : undefined,
   );
 
+  const streaming = conversation ? isStreaming(conversation.id) : false;
+  const currentStatus = conversation?.currentStatus;
+
+  const userMessageHistory = useMemo(() =>
+    (conversation?.messages ?? [])
+      .filter((m) => m.role === 'user')
+      .map((m) => m.parts.filter((p) => p.kind === 'text').map((p) => p.text).join('\n'))
+      .filter(Boolean),
+    [conversation?.messages],
+  );
+
   if (!selectedAgent) {
     return (
       <FlexBox
@@ -26,17 +37,6 @@ export function ChatView() {
       </FlexBox>
     );
   }
-
-  const streaming = conversation ? isStreaming(conversation.id) : false;
-  const currentStatus = conversation?.currentStatus;
-
-  const userMessageHistory = useMemo(() =>
-    (conversation?.messages ?? [])
-      .filter((m) => m.role === 'user')
-      .map((m) => m.parts.filter((p) => p.kind === 'text').map((p) => p.text).join('\n'))
-      .filter(Boolean),
-    [conversation?.messages],
-  );
 
   const handleSend = (text: string) => {
     sendMessage(selectedAgent, text);

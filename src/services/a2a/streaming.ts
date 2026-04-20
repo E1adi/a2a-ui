@@ -23,6 +23,7 @@ export function sendStreamingMessage(
   onError: (error: Error) => void,
   onComplete: (authStatus?: string) => void,
   useProxy = true,
+  agentId?: string,
 ): AbortController {
   const controller = new AbortController();
 
@@ -33,6 +34,9 @@ export function sendStreamingMessage(
 
   if (useProxy) {
     headers['X-Target-URL'] = agentUrl;
+    if (agentId) {
+      headers['X-Agent-Id'] = agentId;
+    }
   }
 
   const request: JsonRpcRequest = {
@@ -58,6 +62,9 @@ export function sendStreamingMessage(
       const authStatus = res.headers.get('X-Auth-Status') || undefined;
 
       if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          throw new A2AHttpError(res.status, 'This agent requires authentication. Edit the agent to add OIDC configuration.');
+        }
         throw new A2AHttpError(res.status, res.statusText);
       }
 

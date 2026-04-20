@@ -14,10 +14,12 @@ const PROXY_URL = import.meta.env.VITE_PROXY_URL || 'http://localhost:3001/proxy
 export class A2AClient {
   private agentUrl: string;
   private useProxy: boolean;
+  private agentId?: string;
 
-  constructor(agentUrl: string, useProxy = true) {
+  constructor(agentUrl: string, useProxy = true, agentId?: string) {
     this.agentUrl = agentUrl;
     this.useProxy = useProxy;
+    this.agentId = agentId;
   }
 
   static async discoverAgent(baseUrl: string, useProxy = true): Promise<AgentCard> {
@@ -78,6 +80,9 @@ export class A2AClient {
 
     if (this.useProxy) {
       headers['X-Target-URL'] = this.agentUrl;
+      if (this.agentId) {
+        headers['X-Agent-Id'] = this.agentId;
+      }
     }
 
     const request: JsonRpcRequest = {

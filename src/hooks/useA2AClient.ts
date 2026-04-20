@@ -90,11 +90,17 @@ export function useA2AClient() {
               handleStreamEvent(conversationId, agentMsgId, event);
             },
             (error: Error) => {
-              updateMessage(conversationId, agentMsgId, {
-                status: 'error',
-                error: error.message,
-              });
+              clearCurrentStatus(conversationId);
               clearActiveStream(conversationId);
+              const errorMessage: ChatMessage = {
+                messageId: agentMsgId,
+                role: 'agent',
+                parts: [],
+                status: 'error',
+                timestamp: Date.now(),
+                error: error.message,
+              };
+              addMessage(conversationId, errorMessage);
             },
             (authStatus?: string) => {
               console.log('[useA2AClient] Stream complete');
@@ -107,12 +113,13 @@ export function useA2AClient() {
               }
             },
             useProxy,
+            agent.id,
           );
 
           setActiveStream(conversationId, controller);
         } else {
           // Non-streaming: synchronous request/response with polling
-          const client = new A2AClient(agentUrl, useProxy);
+          const client = new A2AClient(agentUrl, useProxy, agent.id);
           const agentMsgId = uuidv4();
 
           let task: Task;
@@ -130,6 +137,8 @@ export function useA2AClient() {
                 setAuthStatus(agent.id, 'disconnected');
                 throw new Error('Authentication expired. Click the agent to reconnect.');
               }
+            } else if (err instanceof A2AHttpError && (err.status === 401 || err.status === 403)) {
+              throw new Error('This agent requires authentication. Edit the agent to add OIDC configuration.');
             } else {
               throw err;
             }
@@ -219,7 +228,7 @@ export function useA2AClient() {
         const errorMessage: ChatMessage = {
           messageId: uuidv4(),
           role: 'agent',
-          parts: [{ kind: 'text', text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
+          parts: [],
           status: 'error',
           timestamp: Date.now(),
           error: err instanceof Error ? err.message : String(err),

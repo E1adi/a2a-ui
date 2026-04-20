@@ -55,6 +55,11 @@ export function Sidebar() {
   const handleConfirmDelete = () => {
     if (confirmDialog.type === 'agent') {
       deleteAllConversationsForAgent(confirmDialog.id);
+      // Clear stored tokens on the proxy server
+      fetch(`http://localhost:3001/auth/clear-token/${confirmDialog.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      }).catch(() => {});
       removeAgent(confirmDialog.id);
     } else {
       deleteConversation(confirmDialog.id);

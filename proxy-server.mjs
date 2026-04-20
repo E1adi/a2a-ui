@@ -520,9 +520,9 @@ app.all('/proxy', async (req, res) => {
     });
   }
 
-  // Look up token by URL prefix match
-  const tokenRow = getTokensByUrl(targetUrl);
-  const agentId = tokenRow?.agent_id;
+  // Look up token by agent ID (sent by frontend) — never by URL alone
+  const agentId = req.headers['x-agent-id'] || null;
+  const tokenRow = agentId ? getTokens(agentId) : null;
 
   console.log(`[${new Date().toISOString()}] ${req.method} ${targetUrl}${agentId ? ` (agent: ${agentId})` : ''}`);
 
@@ -533,6 +533,7 @@ app.all('/proxy', async (req, res) => {
     const headers = { ...req.headers };
     delete headers.host;
     delete headers['x-target-url'];
+    delete headers['x-agent-id'];
     delete headers.connection;
     delete headers['content-length'];
 
