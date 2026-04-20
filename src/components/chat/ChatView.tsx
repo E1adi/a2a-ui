@@ -11,7 +11,9 @@ import { MessageInput } from './MessageInput.tsx';
 export function ChatView() {
   const { selectedAgent } = useAgents();
   const { sendMessage, cancelStream, isStreaming } = useA2AClient();
-  const getSelectedConversation = useChatStore((s) => s.getSelectedConversation);
+  const conversation = useChatStore((s) =>
+    s.selectedConversationId ? s.conversations[s.selectedConversationId] : undefined,
+  );
 
   if (!selectedAgent) {
     return (
@@ -25,7 +27,6 @@ export function ChatView() {
     );
   }
 
-  const conversation = getSelectedConversation();
   const streaming = conversation ? isStreaming(conversation.id) : false;
   const currentStatus = conversation?.currentStatus;
 

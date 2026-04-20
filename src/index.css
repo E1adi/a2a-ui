@@ -173,6 +173,18 @@ html, body, #root {
   filter: brightness(1.15);
 }
 
+/* ── Agent edit badge (hover reveal) ── */
+.agent-avatar-item:hover .agent-edit-badge {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+  pointer-events: auto !important;
+}
+
+.agent-edit-badge:hover {
+  background: var(--sapInformativeColor) !important;
+  filter: brightness(1.15);
+}
+
 /* ── Streaming cursor animation ── */
 .streaming-cursor::after {
   content: '\25CF';

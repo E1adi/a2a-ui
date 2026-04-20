@@ -60,7 +60,20 @@ export function MessageList({ messages, artifacts, agent, currentStatus }: Messa
         {artifacts.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {artifacts
-              .filter((artifact) => artifact.name !== 'agent_result')
+              .filter((artifact) => {
+                // Skip artifacts that are just duplicates of the agent message text
+                if (artifact.name === 'agent_result' || artifact.name === 'result') return false;
+                // Skip text-only artifacts whose content already appears in messages
+                const allText = artifact.parts.every((p) => p.kind === 'text');
+                if (allText) {
+                  const artifactText = artifact.parts.map((p) => p.kind === 'text' ? p.text : '').join('');
+                  const isDuplicate = messages.some(
+                    (m) => m.role === 'agent' && m.parts.some((p) => p.kind === 'text' && p.text === artifactText),
+                  );
+                  if (isDuplicate) return false;
+                }
+                return true;
+              })
               .map((artifact) => (
                 <ArtifactRenderer key={artifact.artifactId} artifact={artifact} />
               ))}

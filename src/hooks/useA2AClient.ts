@@ -53,6 +53,7 @@ export function useA2AClient() {
 
       // Build A2A message
       const a2aMessage: Message = {
+        kind: 'message',
         messageId: userMessage.messageId,
         role: 'user',
         parts: userMessage.parts,
@@ -110,7 +111,7 @@ export function useA2AClient() {
 
           setActiveStream(conversationId, controller);
         } else {
-          // Non-streaming: synchronous request/response
+          // Non-streaming: synchronous request/response with polling
           const client = new A2AClient(agentUrl, useProxy);
           const agentMsgId = uuidv4();
 
@@ -137,24 +138,55 @@ export function useA2AClient() {
           if (task.contextId) {
             setContextId(conversationId, task.contextId);
           }
+
+          // Poll if task is not in a terminal state
+          const terminalStates: Set<string> = new Set(['completed', 'failed', 'canceled', 'rejected']);
+          const POLL_INTERVAL = 1000;
+          const MAX_POLLS = 120; // 2 minutes max
+          let polls = 0;
+
+          while (!terminalStates.has(task.status.state) && polls < MAX_POLLS) {
+            const statusText = task.status.state === 'working' ? 'Agent is working...'
+              : task.status.state === 'input-required' ? 'Agent needs input'
+              : `Agent status: ${task.status.state}`;
+            setCurrentStatus(conversationId, statusText);
+
+            await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+            try {
+              task = await client.getTask(task.id);
+            } catch {
+              break;
+            }
+            polls++;
+          }
+
           addTask(conversationId, task);
 
-          // Extract agent response from task
-          const agentParts: Part[] = [];
+          // Extract agent response from task — priority order:
+          // 1. status.message (explicit final message)
+          // 2. artifact text parts (common for async agents)
+          // 3. history agent messages (fallback, may contain intermediate "Processing..." noise)
+          let responseParts: Part[] = [];
+
           if (task.status.message) {
-            agentParts.push(...task.status.message.parts);
+            responseParts = task.status.message.parts;
           }
-          if (task.artifacts) {
+
+          if (responseParts.length === 0 && task.artifacts?.length) {
+            for (const artifact of task.artifacts) {
+              addArtifact(conversationId, artifact);
+              const textParts = artifact.parts.filter((p) => p.kind === 'text');
+              if (textParts.length > 0) {
+                responseParts.push(...textParts);
+              }
+            }
+          } else if (task.artifacts) {
             for (const artifact of task.artifacts) {
               addArtifact(conversationId, artifact);
             }
           }
 
-          // Determine response parts - check multiple sources
-          let responseParts: Part[] = [];
-          if (agentParts.length > 0) {
-            responseParts = agentParts;
-          } else if (task.history?.length) {
+          if (responseParts.length === 0 && task.history?.length) {
             responseParts = task.history.filter((m) => m.role === 'agent').flatMap((m) => m.parts);
           }
 
@@ -173,14 +205,17 @@ export function useA2AClient() {
 
           console.log('[useA2AClient] Non-streaming response:', {
             taskStatus: task.status,
-            agentParts: agentParts.length,
             historyLength: task.history?.length,
+            artifactsLength: task.artifacts?.length,
             responseParts: responseParts.length,
             taskState: task.status.state,
             fullTask: task,
           });
+
+          clearCurrentStatus(conversationId);
         }
       } catch (err) {
+        clearCurrentStatus(conversationId);
         const errorMessage: ChatMessage = {
           messageId: uuidv4(),
           role: 'agent',
@@ -241,32 +276,21 @@ export function useA2AClient() {
           console.log('[useA2AClient] Artifact update:', event.artifact);
           addArtifact(conversationId, event.artifact);
 
-          // Clear status and create message bubble for artifact content
+          // Clear status and create message bubble for artifact text content
           const artifact = event.artifact;
-          if (artifact.name === 'agent_result' && artifact.parts) {
+          const textParts = artifact.parts?.filter(p => p.kind === 'text') ?? [];
+          if (textParts.length > 0) {
             clearCurrentStatus(conversationId);
 
-            const textParts = artifact.parts.filter(p => p.kind === 'text');
-            const parts: Part[] = [];
-            for (const part of textParts) {
-              if (part.kind === 'text') {
-                console.log('[useA2AClient] Creating message from artifact:', part.text);
-                parts.push(part);
-              }
-            }
-
-            // Create the agent message bubble with artifact content
-            if (parts.length > 0) {
-              const agentMessage: ChatMessage = {
-                messageId: agentMsgId,
-                role: 'agent',
-                parts,
-                contextId: event.contextId,
-                status: 'sent',
-                timestamp: Date.now(),
-              };
-              addMessage(conversationId, agentMessage);
-            }
+            const agentMessage: ChatMessage = {
+              messageId: agentMsgId,
+              role: 'agent',
+              parts: textParts,
+              contextId: event.contextId,
+              status: 'sent',
+              timestamp: Date.now(),
+            };
+            addMessage(conversationId, agentMessage);
           }
         } else if (event.kind === 'task') {
           const { id, contextId, status, history } = event;

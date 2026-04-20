@@ -14,12 +14,14 @@ import {
 import '@ui5/webcomponents-icons/dist/chain-link.js';
 import '@ui5/webcomponents-icons/dist/discussion.js';
 import '@ui5/webcomponents-icons/dist/add.js';
+import '@ui5/webcomponents-icons/dist/edit.js';
 import { useAgents } from '../../hooks/useAgents.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { useAgentStore } from '../../store/agentStore.ts';
 import { useChatStore } from '../../store/chatStore.ts';
 import { AddAgentDialog } from '../agents/AddAgentDialog.tsx';
-import type { AuthStatus } from '../../types/index.ts';
+import { EditAgentDialog } from '../agents/EditAgentDialog.tsx';
+import type { AgentConfig, AuthStatus } from '../../types/index.ts';
 
 export function Sidebar() {
   const { agents, selectedAgentId, selectAgent, removeAgent } = useAgents();
@@ -34,6 +36,7 @@ export function Sidebar() {
     deleteAllConversationsForAgent,
   } = useChatStore();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingAgent, setEditingAgent] = useState<AgentConfig | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     type: 'agent' | 'conversation';
@@ -167,12 +170,13 @@ export function Sidebar() {
                       filter: isDisconnected ? 'grayscale(60%)' : 'none',
                     }}
                   />
+                  {/* Top-left: Disconnected indicator */}
                   {isDisconnected && (
                     <div
                       style={{
                         position: 'absolute',
-                        bottom: '-2px',
-                        right: '-2px',
+                        top: '-2px',
+                        left: '-2px',
                         width: '18px',
                         height: '18px',
                         borderRadius: '50%',
@@ -193,39 +197,74 @@ export function Sidebar() {
                       />
                     </div>
                   )}
-                  {!isDisconnected && (
-                    <div
-                      className="agent-delete-badge"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteAgent(agent.id, agentName);
-                      }}
-                      title="Delete Agent"
+                  {/* Top-right: Delete badge */}
+                  <div
+                    className="agent-delete-badge"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteAgent(agent.id, agentName);
+                    }}
+                    title="Delete Agent"
+                    style={{
+                      position: 'absolute',
+                      top: '-4px',
+                      right: '-4px',
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      background: 'var(--sapNegativeColor)',
+                      color: 'var(--sapContent_ContrastTextColor)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      lineHeight: 1,
+                      border: '2px solid var(--sapShellColor)',
+                      cursor: 'pointer',
+                      opacity: 0,
+                      transform: 'scale(0.5)',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    ×
+                  </div>
+                  {/* Bottom-right: Edit badge */}
+                  <div
+                    className="agent-edit-badge"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingAgent(agent);
+                    }}
+                    title="Edit Agent"
+                    style={{
+                      position: 'absolute',
+                      bottom: '-4px',
+                      right: '-4px',
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      background: 'var(--sapInformativeColor)',
+                      color: 'var(--sapContent_ContrastTextColor)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '2px solid var(--sapShellColor)',
+                      cursor: 'pointer',
+                      opacity: 0,
+                      transform: 'scale(0.5)',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <Icon
+                      name="edit"
                       style={{
-                        position: 'absolute',
-                        top: '-4px',
-                        right: '-4px',
-                        width: '16px',
-                        height: '16px',
-                        borderRadius: '50%',
-                        background: 'var(--sapNegativeColor)',
+                        width: '8px',
+                        height: '8px',
                         color: 'var(--sapContent_ContrastTextColor)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        lineHeight: 1,
-                        border: '2px solid var(--sapShellColor)',
-                        cursor: 'pointer',
-                        opacity: 0,
-                        transform: 'scale(0.5)',
-                        pointerEvents: 'none',
                       }}
-                    >
-                      ×
-                    </div>
-                  )}
+                    />
+                  </div>
                 </div>
               </FlexBox>
             );
@@ -421,6 +460,13 @@ export function Sidebar() {
       </FlexBox>
 
       <AddAgentDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
+      {editingAgent && (
+        <EditAgentDialog
+          open={!!editingAgent}
+          onClose={() => setEditingAgent(null)}
+          agent={editingAgent}
+        />
+      )}
       <Dialog
         open={confirmDialog.open}
         onClose={() => setConfirmDialog(prev => ({ ...prev, open: false }))}

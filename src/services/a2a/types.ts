@@ -39,6 +39,7 @@ export type Part = TextPart | FilePart | DataPart;
 
 // --- Messages ---
 export interface Message {
+  kind: 'message';
   messageId: string;
   role: 'user' | 'agent';
   parts: Part[];

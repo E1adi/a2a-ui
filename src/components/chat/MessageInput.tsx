@@ -1,4 +1,4 @@
-import { useState, useCallback, type KeyboardEvent } from 'react';
+import { useState, useCallback, useEffect, useRef, type KeyboardEvent } from 'react';
 import { FlexBox, TextArea, Button } from '@ui5/webcomponents-react';
 
 interface MessageInputProps {
@@ -13,6 +13,17 @@ export function MessageInput({ onSend, streaming, onCancel, userMessageHistory =
   // -1 means "draft" (current unsent input), 0 = most recent sent message, 1 = second most recent, etc.
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [draft, setDraft] = useState('');
+  const textAreaRef = useRef<HTMLElement>(null);
+
+  // Refocus the textarea when streaming ends (disabled goes from true → false)
+  useEffect(() => {
+    if (!streaming) {
+      // Small delay to let the DOM re-enable the element
+      requestAnimationFrame(() => {
+        textAreaRef.current?.focus();
+      });
+    }
+  }, [streaming]);
 
   const handleSend = () => {
     const trimmed = text.trim();
@@ -30,7 +41,10 @@ export function MessageInput({ onSend, streaming, onCancel, userMessageHistory =
       return;
     }
 
-    if (e.key === 'ArrowUp' && userMessageHistory.length > 0) {
+    // Only navigate history when input has at most one line
+    const isMultiline = text.includes('\n');
+
+    if (e.key === 'ArrowUp' && !isMultiline && userMessageHistory.length > 0) {
       e.preventDefault();
       if (historyIndex === -1) {
         // Save current input as draft before navigating
@@ -45,7 +59,7 @@ export function MessageInput({ onSend, streaming, onCancel, userMessageHistory =
       return;
     }
 
-    if (e.key === 'ArrowDown' && historyIndex >= 0) {
+    if (e.key === 'ArrowDown' && !isMultiline && historyIndex >= 0) {
       e.preventDefault();
       if (historyIndex === 0) {
         // Back to draft
@@ -94,6 +108,7 @@ export function MessageInput({ onSend, streaming, onCancel, userMessageHistory =
         }}
       >
         <TextArea
+          ref={textAreaRef}
           value={text}
           onInput={(e) => handleInput(e.target.value)}
           onKeyDown={handleKeyDown}
