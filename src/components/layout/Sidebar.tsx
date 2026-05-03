@@ -56,7 +56,8 @@ export function Sidebar() {
     if (confirmDialog.type === 'agent') {
       deleteAllConversationsForAgent(confirmDialog.id);
       // Clear stored tokens on the proxy server
-      fetch(`http://localhost:3001/auth/clear-token/${confirmDialog.id}`, {
+      const proxyBase = import.meta.env.VITE_PROXY_BASE_URL || 'http://localhost:3001';
+      fetch(`${proxyBase}/auth/clear-token/${confirmDialog.id}`, {
         method: 'DELETE',
         credentials: 'include',
       }).catch(() => {});

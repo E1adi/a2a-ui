@@ -68,6 +68,23 @@ npm start
 
 The application will open at **http://localhost:5173** with the proxy running on **http://localhost:3001**.
 
+### Custom Ports
+
+```bash
+# Use flags to override default ports
+npm start -- --proxy-port 4000 --ui-port 3000
+
+# Short form
+npm start -- -p 4000 -u 3000
+```
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--proxy-port` | `-p` | `3001` | Proxy server port |
+| `--ui-port` | `-u` | `5173` | Vite dev server port |
+
+The OAuth redirect URI follows the proxy port: `http://localhost:<proxy-port>/auth/callback`
+
 ### Alternative: Run Separately
 
 ```bash
@@ -150,18 +167,28 @@ npm run dev
 
 ## ⚙️ Configuration
 
-Configuration is done via environment variables. Copy `.env.example` to `.env` and customize:
+### CLI Flags (recommended)
+
+```bash
+npm start -- --proxy-port 4000 --ui-port 3000
+```
+
+### Environment Variables
+
+For advanced configuration, set these environment variables:
 
 ```bash
 # Proxy Server
 PORT=3001
-SESSION_SECRET=your-random-secret-here
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174
+OAUTH_REDIRECT_URI=http://localhost:3001/auth/callback
 
 # UI (Vite)
 VITE_PROXY_URL=http://localhost:3001/proxy
 VITE_PROXY_BASE_URL=http://localhost:3001
 ```
+
+Note: When using `npm start` with flags, environment variables are set automatically.
 
 ---
 

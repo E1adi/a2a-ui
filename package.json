@@ -4,12 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run proxy\" \"vite\"",
+    "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "proxy": "node proxy-server.mjs",
-    "start": "concurrently \"npm run proxy\" \"npm run dev\""
+    "start": "node start.mjs"
   },
   "dependencies": {
     "@ui5/webcomponents": "^2.20.0",
