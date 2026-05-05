@@ -28,17 +28,6 @@ export function useAgents() {
 
   const saveAgent = useCallback(
     (agentUrl: string, agentCard?: AgentCard, auth?: OidcConfig, useProxy = true, preGeneratedId?: string, displayName?: string) => {
-      // Check if agent already exists by URL
-      const normalizedUrl = agentUrl.toLowerCase().trim();
-      const existingAgent = agents.find(
-        (a) => a.agentUrl.toLowerCase().trim() === normalizedUrl
-      );
-
-      if (existingAgent) {
-        setDiscoveryError('This agent is already added');
-        return null;
-      }
-
       const config: AgentConfig = {
         id: preGeneratedId || uuidv4(),
         agentUrl,
@@ -52,7 +41,7 @@ export function useAgents() {
       setDiscoveryError(null);
       return config;
     },
-    [addAgent, agents],
+    [addAgent],
   );
 
   const selectedAgent = selectedAgentId ? getAgent(selectedAgentId) : undefined;

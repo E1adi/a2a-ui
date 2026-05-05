@@ -93,9 +93,18 @@ export function Sidebar() {
         selectAgent(agentId);
       } catch (err) {
         console.error('[Sidebar] Re-auth failed:', err);
+        return;
       }
     } else {
       selectAgent(agentId);
+    }
+
+    // Switch to the most recent conversation for this agent, or clear selection
+    const agentConversations = getConversationsForAgent(agentId);
+    if (agentConversations.length > 0) {
+      selectConversation(agentConversations[0].id);
+    } else {
+      selectConversation(null);
     }
   };
 

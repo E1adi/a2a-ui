@@ -5,7 +5,6 @@ import crypto from 'crypto';
 import {
   storeTokens,
   getTokens,
-  getTokensByUrl,
   deleteTokens,
   getAllTokens,
   storePendingAuth,
@@ -283,9 +282,8 @@ app.post('/auth/exchange-code', async (req, res) => {
       ? Math.floor(Date.now() / 1000) + tokenData.expires_in
       : null;
 
-    // Store tokens in SQLite (keyed by agent_url)
-    storeTokens(agent_url, {
-      agentId: agent_id,
+    // Store tokens in SQLite (keyed by agent_id)
+    storeTokens(agent_id, agent_url, {
       accessToken: tokenData.access_token,
       refreshToken: tokenData.refresh_token || null,
       expiresAt,
@@ -360,8 +358,7 @@ app.post('/auth/refresh', async (req, res) => {
       : null;
 
     // Update tokens (use rotated refresh_token if provided, otherwise keep existing)
-    storeTokens(tokenRow.agent_url, {
-      agentId,
+    storeTokens(agentId, tokenRow.agent_url, {
       accessToken: newTokenData.access_token,
       refreshToken: newTokenData.refresh_token || tokenRow.refresh_token,
       expiresAt,
@@ -489,8 +486,7 @@ async function ensureFreshToken(agentId) {
       ? Math.floor(Date.now() / 1000) + newTokenData.expires_in
       : null;
 
-    storeTokens(tokenRow.agent_url, {
-      agentId,
+    storeTokens(agentId, tokenRow.agent_url, {
       accessToken: newTokenData.access_token,
       refreshToken: newTokenData.refresh_token || tokenRow.refresh_token,
       expiresAt,
@@ -599,8 +595,7 @@ app.all('/proxy', async (req, res) => {
               ? Math.floor(Date.now() / 1000) + newTokenData.expires_in
               : null;
 
-            storeTokens(tokenRow.agent_url, {
-              agentId,
+            storeTokens(agentId, tokenRow.agent_url, {
               accessToken: newTokenData.access_token,
               refreshToken: newTokenData.refresh_token || tokenRow.refresh_token,
               expiresAt,

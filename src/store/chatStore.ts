@@ -13,7 +13,7 @@ interface ChatState {
   createConversation: (agentId: string, title?: string) => Conversation;
   deleteConversation: (conversationId: string) => void;
   deleteAllConversationsForAgent: (agentId: string) => void;
-  selectConversation: (conversationId: string) => void;
+  selectConversation: (conversationId: string | null) => void;
   getConversation: (conversationId: string) => Conversation | undefined;
   getSelectedConversation: () => Conversation | undefined;
   getConversationsForAgent: (agentId: string) => Conversation[];

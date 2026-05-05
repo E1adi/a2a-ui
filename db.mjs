@@ -15,8 +15,8 @@ db.pragma('journal_mode = WAL');
 // Create tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS tokens (
-    agent_url TEXT PRIMARY KEY,
-    agent_id TEXT NOT NULL,
+    agent_id TEXT PRIMARY KEY,
+    agent_url TEXT NOT NULL,
     access_token TEXT NOT NULL,
     refresh_token TEXT,
     access_token_expires_at INTEGER,
@@ -44,14 +44,11 @@ db.exec(`
 
 // Prepared statements
 const storeTokensStmt = db.prepare(`
-  INSERT OR REPLACE INTO tokens (agent_url, agent_id, access_token, refresh_token, access_token_expires_at, token_endpoint, client_id, client_secret, scopes, updated_at)
+  INSERT OR REPLACE INTO tokens (agent_id, agent_url, access_token, refresh_token, access_token_expires_at, token_endpoint, client_id, client_secret, scopes, updated_at)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, unixepoch())
 `);
 
 const getTokensStmt = db.prepare(`SELECT * FROM tokens WHERE agent_id = ?`);
-const getTokensByUrlStmt = db.prepare(
-  `SELECT * FROM tokens WHERE SUBSTR(?, 1, LENGTH(agent_url)) = agent_url LIMIT 1`
-);
 const deleteTokensStmt = db.prepare(`DELETE FROM tokens WHERE agent_id = ?`);
 const getAllTokensStmt = db.prepare(`SELECT * FROM tokens`);
 
@@ -66,16 +63,12 @@ const deletePendingAuthStmt = db.prepare(`DELETE FROM pending_auth WHERE state =
 // Clean up stale pending_auth entries (older than 10 minutes)
 const cleanStalePendingStmt = db.prepare(`DELETE FROM pending_auth WHERE created_at < unixepoch() - 600`);
 
-export function storeTokens(agentUrl, { agentId, accessToken, refreshToken, expiresAt, tokenEndpoint, clientId, clientSecret, scopes }) {
-  storeTokensStmt.run(agentUrl, agentId, accessToken, refreshToken || null, expiresAt || null, tokenEndpoint || null, clientId || null, clientSecret || null, scopes || null);
+export function storeTokens(agentId, agentUrl, { accessToken, refreshToken, expiresAt, tokenEndpoint, clientId, clientSecret, scopes }) {
+  storeTokensStmt.run(agentId, agentUrl, accessToken, refreshToken || null, expiresAt || null, tokenEndpoint || null, clientId || null, clientSecret || null, scopes || null);
 }
 
 export function getTokens(agentId) {
   return getTokensStmt.get(agentId) || null;
-}
-
-export function getTokensByUrl(targetUrl) {
-  return getTokensByUrlStmt.get(targetUrl) || null;
 }
 
 export function deleteTokens(agentId) {
